@@ -44,6 +44,7 @@
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
+    overflow-x: hidden;
     @apply bg-background text-foreground;
   }
 
@@ -62,6 +63,7 @@
   }
 
   html {
+    overflow-x: hidden;
     @apply font-sans;
   }
 }
