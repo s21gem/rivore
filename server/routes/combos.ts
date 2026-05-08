@@ -47,7 +47,7 @@ router.post('/', authenticateAdmin, async (req, res) => {
 // Update combo (Admin)
 router.put('/:id', authenticateAdmin, async (req, res) => {
   try {
-    const combo = await Combo.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const combo = await Combo.findByIdAndUpdate(req.params.id, req.body, { returnDocument: 'after' });
     if (!combo) return res.status(404).json({ message: 'Combo not found' });
     res.json(combo);
   } catch (error) {

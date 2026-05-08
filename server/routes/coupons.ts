@@ -47,7 +47,7 @@ router.put('/:id', authenticateAdmin, async (req, res) => {
     const updatedCoupon = await Coupon.findByIdAndUpdate(
       req.params.id,
       { $set: req.body },
-      { new: true }
+      { returnDocument: 'after' }
     );
     if (!updatedCoupon) return res.status(404).json({ message: 'Coupon not found' });
     res.json(updatedCoupon);

@@ -146,7 +146,7 @@ router.put('/:id', authenticateAdmin, upload.single('image'), async (req, res) =
       discountAmount: Number(req.body.discountAmount) || 0,
     };
 
-    const product = await Product.findByIdAndUpdate(req.params.id, productData, { new: true });
+    const product = await Product.findByIdAndUpdate(req.params.id, productData, { returnDocument: 'after' });
     if (!product) return res.status(404).json({ message: 'Product not found' });
     res.json(product);
   } catch (error: any) {

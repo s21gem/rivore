@@ -56,7 +56,7 @@ router.put('/', authenticateAdmin, async (req, res) => {
     const settings = await Settings.findOneAndUpdate(
       {},
       { $set: req.body },
-      { new: true, upsert: true, runValidators: true }
+      { returnDocument: 'after', upsert: true, runValidators: true }
     );
     res.json(settings);
   } catch (error) {

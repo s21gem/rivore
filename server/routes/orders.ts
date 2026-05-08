@@ -262,7 +262,7 @@ router.put('/:id/status', authenticateAdmin, async (req, res) => {
     if (status) update.status = status;
     if (paymentStatus) update.paymentStatus = paymentStatus;
 
-    const order = await Order.findByIdAndUpdate(req.params.id, update, { new: true });
+    const order = await Order.findByIdAndUpdate(req.params.id, update, { returnDocument: 'after' });
     if (!order) return res.status(404).json({ message: 'Order not found' });
     res.json(order);
   } catch (error) {
