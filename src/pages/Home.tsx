@@ -107,11 +107,11 @@ export default function Home() {
   const [cmsSignatureProducts, setCmsSignatureProducts] = useState<{productId: string; tagline: string}[]>([]);
   const [cmsWhyRivore, setCmsWhyRivore] = useState<{icon: string; title: string; description: string}[]>([]);
   const [storeLocation, setStoreLocation] = useState({
-    name: 'RIVORÉ Flagship Store',
-    address: 'House 50, Road 11\nBlock F, Banani\nDhaka 1213, Bangladesh',
-    hours: '11:00 AM - 9:00 PM (Everyday)',
-    mapUrl: 'https://maps.google.com',
-    image: ''
+    name: settings?.storeLocationName || 'RIVORÉ Flagship Store',
+    address: settings?.storeLocationAddress || 'House 50, Road 11\nBlock F, Banani\nDhaka 1213, Bangladesh',
+    hours: settings?.storeLocationHours || '11:00 AM - 9:00 PM (Everyday)',
+    mapUrl: settings?.storeLocationMapUrl || 'https://maps.google.com',
+    image: settings?.storeLocationImage || ''
   });
 
 
@@ -137,6 +137,9 @@ export default function Home() {
         if (settingsRes.ok) {
           settingsData = await settingsRes.json();
           setSettings(settingsData);
+          if (settingsData.comboSectionImage) {
+            setComboImage(settingsData.comboSectionImage);
+          }
           if (settingsData.signatureProducts && settingsData.signatureProducts.length > 0) {
             sigProductIds = settingsData.signatureProducts;
             setCmsSignatureProducts(settingsData.signatureProducts);
@@ -144,9 +147,14 @@ export default function Home() {
           if (settingsData.whyRivoreItems && settingsData.whyRivoreItems.length > 0) {
             setCmsWhyRivore(settingsData.whyRivoreItems);
           }
-          if (settingsData.storeLocationImage) {
-            setStoreLocation(prev => ({ ...prev, image: settingsData.storeLocationImage }));
-          }
+          setStoreLocation(prev => ({
+            ...prev,
+            name: settingsData.storeLocationName || prev.name,
+            address: settingsData.storeLocationAddress || prev.address,
+            hours: settingsData.storeLocationHours || prev.hours,
+            mapUrl: settingsData.storeLocationMapUrl || prev.mapUrl,
+            image: settingsData.storeLocationImage || prev.image
+          }));
           
           if (settingsData.heroImages && settingsData.heroImages.length > 0) {
             setHeroImages(settingsData.heroImages);
