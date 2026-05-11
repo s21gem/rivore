@@ -626,7 +626,10 @@ export default function Products() {
                       <h3 className="text-lg font-serif border-b border-border pb-2">Media & Details</h3>
                       
                       <div>
-                        <label className="block text-sm font-medium text-muted-foreground mb-2">Product Images</label>
+                        <div className="flex justify-between items-end mb-2">
+                          <label className="block text-sm font-medium text-muted-foreground">Product Images</label>
+                          <span className="text-[10px] text-muted-foreground/60 italic">Recommended: 1:1 (Square) or 4:5 (Portrait) ratio. 1000px+ for clarity.</span>
+                        </div>
                         <div className="flex flex-wrap gap-4">
                           {formData.images?.map((img, idx) => (
                             <div key={idx} className="relative w-32 h-32 rounded-xl overflow-hidden border border-border group shadow-sm flex-shrink-0">
@@ -658,7 +661,10 @@ export default function Products() {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-muted-foreground mb-2">Fragrance Notes Image override</label>
+                        <div className="flex justify-between items-end mb-2">
+                          <label className="block text-sm font-medium text-muted-foreground">Fragrance Notes Image override</label>
+                          <span className="text-[10px] text-muted-foreground/60 italic">Recommended: 1:1 Square ratio. 600x600px.</span>
+                        </div>
                         <div className="flex gap-4">
                           {formData.notesImage && (
                             <div className="relative w-32 h-32 rounded-xl overflow-hidden border border-border group shadow-sm bg-[#faf8ff] p-2 flex-shrink-0">

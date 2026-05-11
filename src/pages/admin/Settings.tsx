@@ -676,9 +676,12 @@ export default function Settings() {
   }
 
   // Image upload card component
-  const ImageUploadCard = ({ label, value, field, uploading, setUploading, inputRef, dark = false, aspect = 'aspect-video' }: any) => (
+  const ImageUploadCard = ({ label, value, field, uploading, setUploading, inputRef, dark = false, aspect = 'aspect-video', info }: any) => (
     <div>
-      <label className="block text-sm font-medium text-muted-foreground mb-3">{label}</label>
+      <div className="flex justify-between items-end mb-3">
+        <label className="block text-sm font-medium text-muted-foreground">{label}</label>
+        {info && <span className="text-[10px] text-muted-foreground/60 italic">{info}</span>}
+      </div>
       <div className={`${dark ? 'bg-[#1A1A1A] border-white/10' : 'bg-white border-border'} rounded-2xl border p-6 flex flex-col items-center gap-4`}>
         {value ? (
           <div className="relative group">
@@ -780,21 +783,24 @@ export default function Settings() {
             <h2 className="text-xl font-serif font-semibold text-foreground pb-4 border-b border-border">Branding</h2>
             <p className="text-sm text-muted-foreground">Upload dark and white versions of your logo. The dark logo shows on light backgrounds, and the white logo on dark backgrounds.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ImageUploadCard label="Dark Logo (for light backgrounds)" value={settings.logoDark} field="logoDark" uploading={uploadingLogoDark} setUploading={setUploadingLogoDark} inputRef={logoDarkRef} />
-              <ImageUploadCard label="White Logo (for dark backgrounds)" value={settings.logoWhite} field="logoWhite" uploading={uploadingLogoWhite} setUploading={setUploadingLogoWhite} inputRef={logoWhiteRef} dark />
+              <ImageUploadCard label="Dark Logo (for light backgrounds)" value={settings.logoDark} field="logoDark" uploading={uploadingLogoDark} setUploading={setUploadingLogoDark} inputRef={logoDarkRef} info="Recommended: 500x200px (Horizontal) or 512x512px (Square). PNG/SVG preferred." />
+              <ImageUploadCard label="White Logo (for dark backgrounds)" value={settings.logoWhite} field="logoWhite" uploading={uploadingLogoWhite} setUploading={setUploadingLogoWhite} inputRef={logoWhiteRef} dark info="Recommended: 500x200px (Horizontal) or 512x512px (Square). PNG/SVG preferred." />
             </div>
 
             <div>
               <h3 className="text-lg font-serif font-semibold text-foreground mb-4 pb-3 border-b border-border">Global Fallback Images</h3>
               <p className="text-sm text-muted-foreground mb-4">Fallback images used when a specific product doesn't have an override.</p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <ImageUploadCard label="Global Fragrance Notes Image" value={settings.fragranceNotesImage} field="fragranceNotesImage" uploading={uploadingNotesImg} setUploading={setUploadingNotesImg} inputRef={notesImgRef} aspect="aspect-square" />
+                <ImageUploadCard label="Global Fragrance Notes Image" value={settings.fragranceNotesImage} field="fragranceNotesImage" uploading={uploadingNotesImg} setUploading={setUploadingNotesImg} inputRef={notesImgRef} aspect="aspect-square" info="Recommended: 1:1 Square ratio. 600x600px." />
               </div>
             </div>
 
             <div>
               <h3 className="text-lg font-serif font-semibold text-foreground mb-4 pb-3 border-b border-border">Homepage Hero Images (Carousel)</h3>
-              <p className="text-sm text-muted-foreground mb-4">Upload multiple background images for the hero section carousel.</p>
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-sm text-muted-foreground">Upload multiple background images for the hero section carousel.</p>
+                <span className="text-[10px] text-muted-foreground/60 italic bg-muted/30 px-2 py-1 rounded-md">Recommended: 1920x1080px (16:9 ratio) for high resolution desktop displays.</span>
+              </div>
               <div className="flex flex-wrap gap-4 items-end">
                 {settings.heroImages?.map((img: string, idx: number) => (
                   <div key={idx} className="relative w-64 h-36 rounded-2xl overflow-hidden border border-border group shadow-sm">
@@ -815,7 +821,10 @@ export default function Settings() {
 
             <div>
               <h3 className="text-lg font-serif font-semibold text-foreground mb-4 pb-3 border-b border-border">Combo Section Image</h3>
-              <p className="text-sm text-muted-foreground mb-4">Upload a single image for the Combo Highlights section on the homepage.</p>
+              <div className="flex justify-between items-center mb-4">
+                <p className="text-sm text-muted-foreground">Upload a single image for the Combo Highlights section on the homepage.</p>
+                <span className="text-[10px] text-muted-foreground/60 italic bg-muted/30 px-2 py-1 rounded-md">Recommended: 4:5 Portrait ratio. 1000x1250px for a premium look.</span>
+              </div>
               <div className="flex flex-wrap gap-4 items-end">
                 {settings.comboSectionImage && (
                   <div className="relative w-48 h-48 rounded-2xl overflow-hidden border border-border group shadow-sm">
@@ -1062,7 +1071,10 @@ export default function Settings() {
                 <input type="url" value={settings.storeLocationMapUrl} onChange={(e) => setSettings({ ...settings, storeLocationMapUrl: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-primary/50 outline-none transition-all" placeholder="https://maps.google.com/..." />
               </div>
               <div>
-                <label className="block text-sm font-medium text-muted-foreground mb-3">Store Image (transparent background recommended)</label>
+                <div className="flex justify-between items-end mb-3">
+                  <label className="block text-sm font-medium text-muted-foreground">Store Image (transparent background recommended)</label>
+                  <span className="text-[10px] text-muted-foreground/60 italic">Recommended: 3:2 or 1:1 ratio. 1200x800px. Max size 2MB.</span>
+                </div>
                 <div className="flex flex-wrap gap-4 items-end">
                   {settings.storeLocationImage && (
                     <div className="relative w-48 h-48 rounded-2xl overflow-hidden border border-border group shadow-sm bg-[#f8f5ff]">
