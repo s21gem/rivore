@@ -18,6 +18,8 @@ import uploadRoutes from './server/routes/upload';
 import testimonialRoutes from './server/routes/testimonials';
 import paymentRoutes from './server/routes/payment';
 import couponRoutes from './server/routes/coupons';
+import customerAuthRoutes from './server/routes/customerAuth';
+import customerRoutes from './server/routes/customer';
 
 async function startServer() {
   const app = express();
@@ -54,6 +56,8 @@ async function startServer() {
   app.use('/api/testimonials', testimonialRoutes);
   app.use('/api/payment', paymentRoutes);
   app.use('/api/coupons', couponRoutes);
+  app.use('/api/customer/auth', customerAuthRoutes);
+  app.use('/api/customer', customerRoutes);
 
   // Health Check
   app.get('/api/health', (req, res) => {

@@ -4,6 +4,10 @@ export interface IUser extends Document {
   email: string;
   password?: string;
   role: string;
+  fullName?: string;
+  phone?: string;
+  dob?: Date;
+  gender?: string;
   otp?: string;
   otpExpiry?: Date;
   securityEmail?: string;
@@ -15,6 +19,10 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
   role: { type: String, default: 'admin' },
+  fullName: { type: String },
+  phone: { type: String },
+  dob: { type: Date },
+  gender: { type: String },
   otp: { type: String },
   otpExpiry: { type: Date },
   securityEmail: { type: String },

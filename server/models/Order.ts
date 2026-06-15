@@ -1,6 +1,7 @@
 import mongoose, { Document, Model } from 'mongoose';
 
 export interface IOrder extends Document {
+  customerId?: mongoose.Types.ObjectId;
   customer: {
     name: string;
     email: string;
@@ -34,6 +35,7 @@ export interface IOrder extends Document {
 }
 
 const orderSchema = new mongoose.Schema({
+  customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   customer: {
     name: { type: String, required: true },
     email: { type: String, required: false },

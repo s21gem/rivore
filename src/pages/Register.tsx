@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { KeyRound, Mail, ArrowRight, Loader2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { KeyRound, Mail, ArrowRight, User, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { customerApi } from '../lib/customerApi';
 import { useCustomerAuthStore } from '../store/customerAuthStore';
 
-export default function Login() {
+export default function Register() {
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  
   const navigate = useNavigate();
   const setAuth = useCustomerAuthStore((state) => state.setAuth);
 
@@ -16,12 +18,12 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = await customerApi.login({ email, password });
+      const data = await customerApi.register({ fullName, email, password });
       setAuth(data.user, data.token);
-      toast.success('Welcome back!');
+      toast.success('Account created successfully!');
       navigate('/account');
     } catch (error: any) {
-      toast.error(error.message || 'Login failed');
+      toast.error(error.message || 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -36,11 +38,26 @@ export default function Login() {
       <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-[0_20px_60px_rgba(109,40,217,0.06)] border border-[#eeeeee] w-full max-w-md relative z-10">
         
         <div className="text-center mb-10">
-          <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#111111] mb-2">Welcome Back</h1>
-          <p className="text-[#555555] text-sm md:text-base">Sign in to your account</p>
+          <h1 className="text-3xl md:text-4xl font-serif font-bold text-[#111111] mb-2">Create Account</h1>
+          <p className="text-[#555555] text-sm md:text-base">Join Rivoré to manage your orders</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-xs uppercase font-bold tracking-widest text-[#555555] ml-1">Full Name</label>
+            <div className="relative">
+              <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                className="w-full pl-12 pr-4 py-4 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all font-medium"
+                placeholder="John Doe"
+                required
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="text-xs uppercase font-bold tracking-widest text-[#555555] ml-1">Email Address</label>
             <div className="relative">
@@ -57,10 +74,7 @@ export default function Login() {
           </div>
 
           <div className="space-y-2">
-            <div className="flex justify-between items-center ml-1">
-               <label className="text-xs uppercase font-bold tracking-widest text-[#555555]">Password</label>
-               <Link to="/reset-password" className="text-xs text-primary font-semibold hover:underline">Forgot?</Link>
-            </div>
+            <label className="text-xs uppercase font-bold tracking-widest text-[#555555] ml-1">Password</label>
             <div className="relative">
               <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
@@ -70,6 +84,7 @@ export default function Login() {
                 className="w-full pl-12 pr-4 py-4 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all font-medium"
                 placeholder="••••••••"
                 required
+                minLength={6}
               />
             </div>
           </div>
@@ -79,14 +94,14 @@ export default function Login() {
             disabled={loading}
             className="w-full group bg-[#111111] text-white py-4 rounded-2xl font-bold tracking-wide hover:bg-primary transition-all duration-300 flex items-center justify-center gap-2 mt-2 shadow-[0_10px_30px_rgba(0,0,0,0.1)] hover:shadow-[0_10px_40px_rgba(109,40,217,0.3)] disabled:opacity-70 disabled:cursor-not-allowed"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Sign In'}
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Create Account'}
             {!loading && <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />}
           </button>
         </form>
 
         <div className="mt-8 text-center">
            <p className="text-sm text-[#777777]">
-             Don't have an account? <Link to="/register" className="font-bold text-[#111111] hover:text-primary transition-colors">Sign Up</Link>
+             Already have an account? <Link to="/login" className="font-bold text-[#111111] hover:text-primary transition-colors">Sign In</Link>
            </p>
         </div>
 

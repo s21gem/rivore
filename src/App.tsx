@@ -11,6 +11,15 @@ import Contact from './pages/Contact';
 import ReturnPolicy from './pages/ReturnPolicy';
 import TrackOrder from './pages/TrackOrder';
 import UserLogin from './pages/Login';
+import Register from './pages/Register';
+import ResetPassword from './pages/ResetPassword';
+import AccountLayout from './pages/account/AccountLayout';
+import Profile from './pages/account/Profile';
+import CustomerOrders from './pages/account/Orders';
+import Addresses from './pages/account/Addresses';
+import Rewards from './pages/account/Rewards';
+import Referrals from './pages/account/Referrals';
+import AccountSettings from './pages/account/Settings';
 import AdminLayout from './pages/admin/AdminLayout';
 import Dashboard from './pages/admin/Dashboard';
 import Products from './pages/admin/Products';
@@ -44,6 +53,19 @@ function App() {
           <Route path="return-policy" element={<ReturnPolicy />} />
           <Route path="track" element={<TrackOrder />} />
           <Route path="login" element={<UserLogin />} />
+          <Route path="register" element={<Register />} />
+          <Route path="reset-password" element={<ResetPassword />} />
+
+          {/* Customer Account Routes */}
+          <Route path="account" element={<AccountLayout />}>
+            <Route index element={<Profile />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="orders" element={<CustomerOrders />} />
+            <Route path="addresses" element={<Addresses />} />
+            <Route path="rewards" element={<Rewards />} />
+            <Route path="referrals" element={<Referrals />} />
+            <Route path="settings" element={<AccountSettings />} />
+          </Route>
         </Route>
 
         {/* Admin Routes */}
