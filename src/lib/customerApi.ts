@@ -49,5 +49,7 @@ export const customerApi = {
   
   // Rewards & Referrals
   getRewards: () => fetchWithAuth(`${API_URL}/rewards`),
+  getBirthdayCoupon: () => fetchWithAuth(`${API_URL}/birthday-coupon`),
+
   getReferrals: () => fetchWithAuth(`${API_URL}/referrals`),
 };

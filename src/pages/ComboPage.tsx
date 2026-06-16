@@ -5,6 +5,7 @@ import { useCartStore } from '../store/cartStore';
 import { trackAddToCart, trackViewContent } from '../components/MetaPixel';
 import { toast } from 'sonner';
 import { CheckCircle2, Clock, Star, Phone, Check, X, ShieldAlert } from 'lucide-react';
+import { CloudinaryImage } from '../components/ui/CloudinaryImage';
 
 export default function ComboPage() {
   const addItem = useCartStore((state) => state.addItem);
@@ -184,26 +185,24 @@ export default function ComboPage() {
                         const offsets = ['-translate-x-12 scale-90 z-10 opacity-80', 'z-30 scale-110', 'translate-x-12 scale-90 z-20 opacity-80'];
                         const fallbackClass = i === 0 ? 'z-30 scale-100' : (i === 1 ? '-translate-x-12 scale-90 z-10 opacity-90' : 'translate-x-12 scale-90 z-20 opacity-90');
                         return (
-                          <img
+                          <CloudinaryImage
                             key={i}
                             src={img}
                             alt={`${combo.name} part ${i+1}`}
                             className={`absolute inset-0 m-auto w-2/3 h-2/3 object-contain transition-all duration-700 group-hover:-translate-y-4 ${combo.images.length === 3 ? offsets[i] : fallbackClass}`}
                             loading="lazy"
-                            referrerPolicy="no-referrer"
-                            onError={(e) => { (e.target as HTMLImageElement).src = '/apple-touch-icon.png' }}
+                            width={400}
                           />
                         );
                       })}
                     </div>
                   ) : (
-                    <img
+                    <CloudinaryImage
                       src={combo.image || combo.images?.[0] || 'https://via.placeholder.com/800x800'}
                       alt={combo.name}
                       className="w-full h-full object-contain relative z-10 group-hover:-translate-y-4 group-hover:scale-105 transition-all duration-700"
-                      referrerPolicy="no-referrer"
                       loading="lazy"
-                      onError={(e) => { (e.target as HTMLImageElement).src = '/apple-touch-icon.png' }}
+                      width={800}
                     />
                   )}
                   
@@ -336,7 +335,7 @@ export default function ComboPage() {
                      return (
                        <div key={i} className={`w-12 h-12 md:w-14 md:h-14 rounded-xl border-2 flex items-center justify-center overflow-hidden transition-all duration-300 ${isFilled ? 'border-primary bg-primary/5' : 'border-dashed border-gray-300 bg-gray-50'}`}>
                           {isFilled ? (
-                            <img src={isFilled.image || isFilled.images?.[0]} className="w-full h-full object-cover scale-150" alt={isFilled.name} />
+                            <CloudinaryImage src={isFilled.image || isFilled.images?.[0]} className="w-full h-full object-cover scale-150" alt={isFilled.name} width={100} />
                           ) : (
                             <span className="text-gray-400 text-lg font-light">{i + 1}</span>
                           )}
@@ -367,7 +366,7 @@ export default function ComboPage() {
                          <div className="aspect-[3/4] flex items-center justify-center p-4 relative bg-[#faf8ff]">
                             <div className="absolute inset-0 flex justify-center items-center pointer-events-none"><div className="w-20 h-20 bg-white blur-[30px] rounded-full"></div></div>
                             {isOOS && <div className="absolute inset-0 bg-white/70 z-20 flex items-center justify-center backdrop-blur-[2px]"><span className="bg-red-50 text-red-600 text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-[0.15em] border border-red-200">Out Of Stock</span></div>}
-                            <img src={prod.image || prod.images?.[0]} alt={prod.name} className="w-full h-full object-contain relative z-10" />
+                            <CloudinaryImage src={prod.image || prod.images?.[0]} alt={prod.name} className="w-full h-full object-contain relative z-10" width={200} />
                             
                             {/* Selection Checkbox */}
                             {!isOOS && (

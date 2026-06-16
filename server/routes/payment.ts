@@ -17,10 +17,16 @@ router.post('/bkash/create', async (req, res) => {
       return res.status(400).json({ message: 'bKash payment is not configured' });
     }
 
-    const { amount, orderId } = req.body;
-    if (!amount || !orderId) {
-      return res.status(400).json({ message: 'Amount and orderId are required' });
+    const { orderId } = req.body;
+    if (!orderId) {
+      return res.status(400).json({ message: 'orderId is required' });
     }
+    
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    const amount = order.totalAmount;
 
     // Step 1a: Get bKash Grant Token
     const tokenRes = await fetch('https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized/checkout/token/grant', {
@@ -144,7 +150,17 @@ router.post('/sslcommerz/init', async (req, res) => {
       return res.status(400).json({ message: 'SSLCommerz is not configured' });
     }
 
-    const { amount, orderId, customerName, customerEmail, customerPhone, customerAddress, customerCity } = req.body;
+    const { orderId, customerName, customerEmail, customerPhone, customerAddress, customerCity } = req.body;
+    
+    if (!orderId) {
+      return res.status(400).json({ message: 'orderId is required' });
+    }
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+    const amount = order.totalAmount;
     
     const baseUrl = settings.paymentSslCommerz.isLive
       ? 'https://securepay.sslcommerz.com'
@@ -249,65 +265,164 @@ router.post('/sslcommerz/ipn', async (req, res) => {
 // UddoktaPay Payment Flow
 // ============================================
 
-router.post('/uddoktapay/init', async (req, res) => {
+import Reward from '../models/Reward';
+import User from '../models/User';
+import Referral from '../models/Referral';
+import { sendOrderToSteadfast } from '../services/courierService';
+import AdminActivity from '../models/AdminActivity';
+import SecurityEvent from '../models/SecurityEvent';
+
+// Post Payment Automation Helper
+const processPostPaymentAutomations = async (orderId: string, invoiceId?: string, transactionId?: string) => {
+  const order = await Order.findById(orderId);
+  if (!order || order.paymentStatus !== 'Paid') return;
+
+  const settings = await Settings.findOne();
+  const upSettings = settings?.paymentUddoktaPay;
+
+  // 1. Award Loyalty Points
+  if (upSettings?.autoAwardLoyaltyPoints && settings?.rewardSettings?.enabled) {
+    if (order.customerId) {
+      let rewardDoc = await Reward.findOne({ customerId: order.customerId });
+      if (!rewardDoc) rewardDoc = new Reward({ customerId: order.customerId, points: 0, transactions: [] });
+      
+      // Check if this specific order was already awarded to prevent duplicate processing
+      const alreadyAwarded = rewardDoc.transactions.some(t => t.description.includes(order._id.toString()));
+      if (!alreadyAwarded) {
+        const pointsEarned = Math.floor(order.totalAmount / (settings.rewardSettings.spendForOnePoint || 100));
+        if (pointsEarned > 0) {
+          rewardDoc.points += pointsEarned;
+          rewardDoc.transactions.push({
+            type: 'Earned',
+            amount: pointsEarned,
+            description: `Earned from Order Purchase (Online): ${order._id}`,
+            date: new Date()
+          });
+          await rewardDoc.save();
+        }
+      }
+    }
+  }
+
+  // 2. Update Membership Tier & Lifetime Spend
+  if (upSettings?.autoUpdateMembershipTier && order.customerId) {
+    const userDoc = await User.findById(order.customerId);
+    if (userDoc) {
+      // Recalculate lifetime spend properly or just append
+      // For safety against double appending, it's better to aggregate all 'Paid' and 'COD' orders
+      const allOrders = await Order.find({ 
+        customerId: order.customerId, 
+        status: { $ne: 'Cancelled' },
+        $or: [{ paymentMethod: 'COD' }, { paymentStatus: 'Paid' }]
+      });
+      const totalSpend = allOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+      userDoc.lifetimeSpend = totalSpend;
+
+      let newTier = 'Regular';
+      if (totalSpend >= 15000) newTier = 'Platinum';
+      else if (totalSpend >= 10000) newTier = 'Gold';
+      else if (totalSpend >= 5000) newTier = 'Silver';
+      userDoc.tier = newTier;
+      await userDoc.save();
+    }
+  }
+
+  // 3. Send to Steadfast
+  if (upSettings?.autoSendToSteadfast && settings?.deliverySteadfast?.enabled && order.delivery?.status === 'none') {
+    const courierResult = await sendOrderToSteadfast(order);
+    if (courierResult?.success) {
+      order.delivery = { consignmentId: courierResult.consignmentId, trackingCode: courierResult.trackingCode, status: 'sent' };
+      await order.save();
+    } else if (courierResult) {
+      order.delivery = { ...order.delivery, status: 'failed', error: courierResult.error };
+      await order.save();
+    }
+  }
+
+  // 4. Activity Log
+  if (upSettings?.enableActivityLogging) {
+    await AdminActivity.create({
+      adminId: 'system',
+      adminName: 'System Automation',
+      action: 'Payment Verified',
+      target: `Order ${orderId}`,
+      ipAddress: '127.0.0.1',
+      deviceType: 'Server'
+    }).catch(() => {});
+  }
+};
+
+
+router.post('/uddoktapay/create', async (req, res) => {
   try {
     const settings = await Settings.findOne();
     if (!settings?.paymentUddoktaPay?.enabled || !settings.paymentUddoktaPay.apiKey) {
       return res.status(400).json({ message: 'UddoktaPay is not configured' });
     }
 
-    const { amount, orderId, customerName, customerEmail, customerPhone } = req.body;
+    const { orderId } = req.body;
+    if (!orderId) return res.status(400).json({ message: 'orderId is required' });
 
-    const baseUrl = settings.paymentUddoktaPay.isLive
-      ? 'https://pay.uddoktapay.com'
-      : 'https://sandbox.uddoktapay.com';
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ message: 'Order not found' });
 
-    const uddoktaRes = await fetch(`${baseUrl}/api/checkout-v2`, {
+    const baseUrl = settings.paymentUddoktaPay.baseUrl || 'https://rivore.paymently.io/api';
+    
+    const payload = {
+      full_name: order.customer.name || 'Customer',
+      email: order.customer.email || 'customer@rivore.com',
+      amount: String(order.totalAmount),
+      metadata: { order_id: orderId, customer_id: order.customerId?.toString() || '' },
+      redirect_url: settings.paymentUddoktaPay.successUrl || `${req.protocol}://${req.get('host')}/payment/uddoktapay/success`,
+      cancel_url: settings.paymentUddoktaPay.cancelUrl || `${req.protocol}://${req.get('host')}/payment/uddoktapay/cancel`,
+      webhook_url: settings.paymentUddoktaPay.webhookUrl || `${req.protocol}://${req.get('host')}/api/payment/uddoktapay/webhook`,
+      return_type: "GET"
+    };
+
+    const uddoktaRes = await fetch(`${baseUrl}/checkout-v2`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         'RT-UDDOKTAPAY-API-KEY': settings.paymentUddoktaPay.apiKey,
       },
-      body: JSON.stringify({
-        full_name: customerName || 'Customer',
-        email: customerEmail || 'customer@rivore.com',
-        amount: String(amount),
-        metadata: { order_id: orderId, phone: customerPhone },
-        redirect_url: `${req.protocol}://${req.get('host')}/api/payment/uddoktapay/callback`,
-        cancel_url: `${req.protocol}://${req.get('host')}/checkout?payment=cancelled`,
-        webhook_url: `${req.protocol}://${req.get('host')}/api/payment/uddoktapay/webhook`,
-      }),
+      body: JSON.stringify(payload),
     });
+    
     const uddoktaData = await uddoktaRes.json();
 
-    if (uddoktaData.payment_url) {
-      res.json({ paymentUrl: uddoktaData.payment_url, invoiceId: uddoktaData.invoice_id });
+    if (uddoktaData.status && uddoktaData.payment_url) {
+      if (settings.paymentUddoktaPay.enableActivityLogging) {
+        await AdminActivity.create({
+          adminId: 'system', adminName: 'System Automation',
+          action: 'Payment Created', target: `Order ${orderId}`,
+          ipAddress: req.ip || req.connection.remoteAddress || '', deviceType: 'Server'
+        }).catch(() => {});
+      }
+      res.json({ payment_url: uddoktaData.payment_url });
     } else {
       res.status(500).json({ message: 'Failed to init UddoktaPay', detail: uddoktaData });
     }
   } catch (error: any) {
-    console.error('UddoktaPay init error:', error);
+    console.error('UddoktaPay create error:', error);
     res.status(500).json({ message: 'UddoktaPay error', error: error.message });
   }
 });
 
-// UddoktaPay callback — user redirect after payment
-router.get('/uddoktapay/callback', async (req, res) => {
+// Verify Payment (Called by frontend success page)
+router.post('/uddoktapay/verify', async (req, res) => {
   try {
-    const { invoice_id } = req.query;
+    const { invoice_id } = req.body;
     
     const settings = await Settings.findOne();
     if (!settings?.paymentUddoktaPay?.apiKey) {
-      return res.redirect('/checkout?payment=failed&reason=config');
+      return res.status(400).json({ message: 'Gateway not configured' });
     }
 
-    const baseUrl = settings.paymentUddoktaPay.isLive
-      ? 'https://pay.uddoktapay.com'
-      : 'https://sandbox.uddoktapay.com';
+    const baseUrl = settings.paymentUddoktaPay.baseUrl || 'https://rivore.paymently.io/api';
 
     // Verify payment
-    const verifyRes = await fetch(`${baseUrl}/api/verify-payment`, {
+    const verifyRes = await fetch(`${baseUrl}/verify-payment`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -321,31 +436,138 @@ router.get('/uddoktapay/callback', async (req, res) => {
     if (verifyData.status === 'COMPLETED') {
       const orderId = verifyData.metadata?.order_id;
       if (orderId) {
-        await Order.findByIdAndUpdate(orderId, {
-          $set: { paymentStatus: 'Paid', paymentMethod: 'UddoktaPay' }
-        });
+        const order = await Order.findById(orderId);
+        
+        // Prevent duplicate processing
+        if (order && order.paymentStatus !== 'Paid') {
+          await Order.findByIdAndUpdate(orderId, {
+            $set: { 
+              paymentStatus: 'Paid', 
+              paymentMethod: 'UddoktaPay',
+              paymentDetails: {
+                invoice_id: invoice_id,
+                transaction_id: verifyData.transaction_id,
+                sender_number: verifyData.sender_number,
+                charged_amount: verifyData.amount,
+                payment_date: verifyData.date,
+                gateway_name: 'UddoktaPay',
+                verification_time: new Date().toISOString(),
+                full_gateway_response: verifyData
+              }
+            }
+          });
+          
+          await processPostPaymentAutomations(orderId, invoice_id, verifyData.transaction_id);
+        }
       }
-      res.redirect(`/checkout?payment=success&trxID=${verifyData.transaction_id || invoice_id}`);
+      res.json({ success: true, verifyData });
     } else {
-      res.redirect(`/checkout?payment=failed&reason=${verifyData.status || 'unknown'}`);
+      res.json({ success: false, verifyData });
     }
   } catch (error: any) {
-    console.error('UddoktaPay callback error:', error);
-    res.redirect('/checkout?payment=failed&reason=server_error');
+    console.error('UddoktaPay verify error:', error);
+    res.status(500).json({ success: false, message: 'Verification error' });
+  }
+});
+
+// Test Connection (Admin)
+router.post('/uddoktapay/test', authenticateAdmin, async (req, res) => {
+  try {
+    const { apiKey, baseUrl } = req.body;
+    if (!apiKey) return res.status(400).json({ message: 'API Key is required' });
+
+    const apiUrl = baseUrl || 'https://rivore.paymently.io/api';
+    
+    // We can test by verifying a dummy invoice or just hitting the base verify endpoint
+    // An invalid invoice will return an error, but it proves we can reach the server.
+    // However, let's just make a dummy request to /verify-payment
+    const startTime = Date.now();
+    const testRes = await fetch(`${apiUrl}/verify-payment`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'RT-UDDOKTAPAY-API-KEY': apiKey,
+      },
+      body: JSON.stringify({ invoice_id: 'test_connection' }),
+    });
+    const endTime = Date.now();
+    const responseTime = endTime - startTime;
+
+    const data = await testRes.json();
+    
+    // UddoktaPay will return {"status": false, "message": "Invoice ID not found."} if API key is valid.
+    // If API key is invalid, it might return 401 Unauthorized or similar.
+    if (testRes.status === 401 || data.message === 'Unauthorized API Key.') {
+       return res.status(400).json({ status: 'Failed', message: 'Invalid API Key', responseTime });
+    }
+
+    res.json({ status: 'Connected', responseTime, message: 'API connected successfully' });
+  } catch (error: any) {
+    res.status(500).json({ status: 'Failed', message: error.message || 'Connection failed' });
   }
 });
 
 // UddoktaPay Webhook (IPN)
 router.post('/uddoktapay/webhook', async (req, res) => {
   try {
-    const { status, metadata } = req.body;
-    if (status === 'COMPLETED' && metadata?.order_id) {
-      await Order.findByIdAndUpdate(metadata.order_id, {
-        $set: { paymentStatus: 'Paid', paymentMethod: 'UddoktaPay' }
-      });
+    const settings = await Settings.findOne();
+    if (!settings?.paymentUddoktaPay?.enableWebhookProcessing) {
+      return res.status(200).json({ message: 'Webhook ignored by settings' });
     }
+
+    const apiKey = req.headers['rt-uddoktapay-api-key'];
+    if (apiKey !== settings.paymentUddoktaPay.apiKey) {
+      if (settings.paymentUddoktaPay.enableSecurityLogging) {
+        await SecurityEvent.create({
+          type: 'Webhook Unauthorized',
+          description: `Invalid API key in UddoktaPay webhook from ${req.ip || 'Unknown'}`,
+          ipAddress: req.ip || req.connection.remoteAddress || ''
+        }).catch(() => {});
+      }
+      return res.status(401).json({ message: 'Unauthorized webhook request' });
+    }
+
+    const { status, metadata, invoice_id, transaction_id, sender_number, amount, date } = req.body;
+    
+    if (status === 'COMPLETED' && metadata?.order_id) {
+      const orderId = metadata.order_id;
+      const order = await Order.findById(orderId);
+      
+      // Idempotency: Prevent duplicate webhook processing
+      if (order && order.paymentStatus !== 'Paid') {
+        await Order.findByIdAndUpdate(orderId, {
+          $set: { 
+            paymentStatus: 'Paid', 
+            paymentMethod: 'UddoktaPay',
+            paymentDetails: {
+              invoice_id: invoice_id,
+              transaction_id: transaction_id,
+              sender_number: sender_number,
+              charged_amount: amount,
+              payment_date: date,
+              gateway_name: 'UddoktaPay',
+              verification_time: new Date().toISOString(),
+              full_gateway_response: req.body
+            }
+          }
+        });
+        
+        await processPostPaymentAutomations(orderId, invoice_id, transaction_id);
+        
+        if (settings.paymentUddoktaPay.enableActivityLogging) {
+          await AdminActivity.create({
+            adminId: 'system', adminName: 'System Automation',
+            action: 'Webhook Processed', target: `Order ${orderId}`,
+            ipAddress: req.ip || req.connection.remoteAddress || '', deviceType: 'Server'
+          }).catch(() => {});
+        }
+      }
+    }
+    
     res.status(200).json({ message: 'Webhook received' });
   } catch (error) {
+    console.error('Webhook error:', error);
     res.status(500).json({ message: 'Webhook error' });
   }
 });

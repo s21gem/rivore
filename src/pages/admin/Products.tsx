@@ -92,6 +92,7 @@ export default function Products() {
     lowStockThreshold: 5,
     notesImage: '',
     discountAmount: 0,
+    boostScore: 0,
   });
 
   const [uploading, setUploading] = useState(false);
@@ -148,6 +149,7 @@ export default function Products() {
         lowStockThreshold: p.lowStockThreshold !== undefined ? p.lowStockThreshold : 5,
         notesImage: p.notesImage || '',
         discountAmount: p.discountAmount !== undefined ? p.discountAmount : 0,
+        boostScore: p.boostScore !== undefined ? p.boostScore : 0,
       });
     } else {
       setEditingProduct(null);
@@ -167,6 +169,7 @@ export default function Products() {
         lowStockThreshold: 5,
         notesImage: '',
         discountAmount: 0,
+        boostScore: 0,
       });
     }
     setIsModalOpen(true);
@@ -326,6 +329,7 @@ export default function Products() {
     submitData.append('stock', String(formData.stock));
     submitData.append('lowStockThreshold', String(formData.lowStockThreshold));
     submitData.append('discountAmount', String(formData.discountAmount || 0));
+    submitData.append('boostScore', String(formData.boostScore || 0));
     submitData.append('images', JSON.stringify(formData.images));
     submitData.append('notesImage', formData.notesImage);
     if (formData.images.length > 0) {
@@ -618,6 +622,14 @@ export default function Products() {
                           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold text-sm">%</span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">Percentage off all sizes. 0 = no discount.</p>
+                      </div>
+
+                      <div className="pt-2">
+                        <label className="block text-sm font-medium text-muted-foreground mb-2">Boost Score (0-100)</label>
+                        <div className="relative">
+                          <input type="number" min="0" max="100" value={formData.boostScore} onChange={(e) => setFormData({ ...formData, boostScore: Math.min(100, Math.max(0, Number(e.target.value))) })} placeholder="e.g. 50" className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-primary/50 outline-none" />
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">Higher score prioritizes product in Recommended sections.</p>
                       </div>
                     </div>
 

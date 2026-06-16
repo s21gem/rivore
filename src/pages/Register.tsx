@@ -1,24 +1,28 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { KeyRound, Mail, ArrowRight, User, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { customerApi } from '../lib/customerApi';
 import { useCustomerAuthStore } from '../store/customerAuthStore';
+import { TurnstileWidget } from '../components/TurnstileWidget';
 
 export default function Register() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const referralCode = searchParams.get('ref') || undefined;
   const setAuth = useCustomerAuthStore((state) => state.setAuth);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = await customerApi.register({ fullName, email, password });
+      const data = await customerApi.register({ fullName, email, password, referralCode, turnstileToken });
       setAuth(data.user, data.token);
       toast.success('Account created successfully!');
       navigate('/account');
@@ -88,6 +92,11 @@ export default function Register() {
               />
             </div>
           </div>
+
+          <TurnstileWidget 
+            onVerify={(token) => setTurnstileToken(token)}
+            onError={() => toast.error('Security verification failed.')}
+          />
 
           <button
             type="submit"

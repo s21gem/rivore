@@ -11,6 +11,7 @@ export interface IProduct extends Document {
   sizes: Record<string, number>;
   image: string;
   isFeatured: boolean;
+  boostScore: number;
   stock: number;
   lowStockThreshold: number;
   isOutOfStock: boolean;
@@ -35,6 +36,7 @@ const productSchema = new mongoose.Schema({
   sizes: { type: Map, of: Number, default: { '10ml': 450, '30ml': 1050, '50ml': 1460 } },
   image: { type: String },
   isFeatured: { type: Boolean, default: false },
+  boostScore: { type: Number, default: 0 },
   
   // Stock Management
   stock: { type: Number, default: 10 },
@@ -85,6 +87,9 @@ productSchema.pre('findOneAndUpdate', function(this: any) {
     }
   }
 });
+productSchema.index({ slug: 1 });
+productSchema.index({ category: 1 });
+productSchema.index({ isFeatured: -1 });
 
 const Product = (mongoose.models.Product as Model<IProduct>) || mongoose.model<IProduct>('Product', productSchema);
 export default Product;

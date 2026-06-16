@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { KeyRound, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { customerApi } from '../lib/customerApi';
+import { TurnstileWidget } from '../components/TurnstileWidget';
 
 export default function ResetPassword() {
   const [email, setEmail] = useState('');
@@ -10,15 +11,17 @@ export default function ResetPassword() {
   const [newPassword, setNewPassword] = useState('');
   const [step, setStep] = useState<1 | 2>(1);
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      await customerApi.requestPasswordReset({ email });
+      await customerApi.requestPasswordReset({ email, turnstileToken });
       toast.success('If the email is registered, an OTP has been sent.');
       setStep(2);
+      setTurnstileToken(null);
     } catch (error: any) {
       toast.error(error.message || 'Failed to request password reset');
     } finally {
@@ -30,7 +33,7 @@ export default function ResetPassword() {
     e.preventDefault();
     setLoading(true);
     try {
-      await customerApi.verifyPasswordReset({ email, otp, newPassword });
+      await customerApi.verifyPasswordReset({ email, otp, newPassword, turnstileToken });
       toast.success('Password reset successfully. You can now log in.');
       navigate('/login');
     } catch (error: any) {
@@ -72,6 +75,12 @@ export default function ResetPassword() {
               </div>
             </div>
 
+            <TurnstileWidget 
+              key={`ts-1-${step}`}
+              onVerify={(token) => setTurnstileToken(token)}
+              onError={() => toast.error('Security verification failed.')}
+            />
+
             <button
               type="submit"
               disabled={loading}
@@ -110,6 +119,12 @@ export default function ResetPassword() {
                 />
               </div>
             </div>
+
+            <TurnstileWidget 
+              key={`ts-2-${step}`}
+              onVerify={(token) => setTurnstileToken(token)}
+              onError={() => toast.error('Security verification failed.')}
+            />
 
             <button
               type="submit"

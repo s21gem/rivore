@@ -4,6 +4,7 @@ import multer from 'multer';
 import Product from '../models/Product';
 import { authenticateAdmin } from '../middleware/auth';
 import { uploadToCloudinary } from '../utils/cloudinary';
+import { logAdminActivity } from '../middleware/auditLogger';
 
 const router = express.Router();
 
@@ -49,7 +50,8 @@ router.get('/', async (req, res) => {
     const products = await Product.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limitNum);
+      .limit(limitNum)
+      .lean();
 
     res.json({
       products,
@@ -62,6 +64,79 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get personalized recommendations
+router.get('/recommendations', async (req, res) => {
+  try {
+    let user = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'rivore_secret_key');
+        const User = require('../models/User').default;
+        user = await User.findById(decoded.id);
+      } catch (err) {
+        // invalid token, ignore
+      }
+    }
+
+    let products = [];
+    const limit = 8; // Number of recommended products
+
+    if (user) {
+      // Find past purchased product IDs
+      const Order = require('../models/Order').default;
+      const orders = await Order.find({ customerId: user._id });
+      const purchasedIds = new Set();
+      orders.forEach((order: any) => {
+        order.items.forEach((item: any) => {
+          if (item.product) purchasedIds.add(item.product.toString());
+        });
+      });
+
+      // Find products matching favorite categories that they haven't bought
+      const matchCriteria: any = {
+        _id: { $nin: Array.from(purchasedIds) },
+        isOutOfStock: false
+      };
+
+      if (user.favoriteCategories && user.favoriteCategories.length > 0) {
+        matchCriteria.category = { $in: user.favoriteCategories };
+      }
+
+      products = await Product.find(matchCriteria)
+        .sort({ boostScore: -1, createdAt: -1 })
+        .limit(limit)
+        .lean();
+
+      // If we don't have enough, fill with generic recommendations
+      if (products.length < limit) {
+        const excludeIds = new Set([...Array.from(purchasedIds), ...products.map(p => p._id.toString())]);
+        const fillProducts = await Product.find({
+          _id: { $nin: Array.from(excludeIds) },
+          isOutOfStock: false
+        })
+          .sort({ boostScore: -1, isFeatured: -1, createdAt: -1 })
+          .limit(limit - products.length)
+          .lean();
+        products = [...products, ...fillProducts];
+      }
+    } else {
+      // Generic recommendations
+      products = await Product.find({ isOutOfStock: false })
+        .sort({ boostScore: -1, isFeatured: -1, createdAt: -1 })
+        .limit(limit)
+        .lean();
+    }
+
+    res.json(products);
+  } catch (error) {
+    console.error('Error fetching recommendations:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // Get single product by id or slug
 router.get('/:idOrSlug', async (req, res) => {
   try {
@@ -70,12 +145,12 @@ router.get('/:idOrSlug', async (req, res) => {
     
     // Check if it's a valid MongoDB ObjectId
     if (mongoose.Types.ObjectId.isValid(idOrSlug)) {
-      product = await Product.findById(idOrSlug);
+      product = await Product.findById(idOrSlug).lean();
     }
     
     // If not found by ID, try finding by slug
     if (!product) {
-      product = await Product.findOne({ slug: idOrSlug });
+      product = await Product.findOne({ slug: idOrSlug }).lean();
     }
 
     if (!product) return res.status(404).json({ message: 'Product not found' });
@@ -86,7 +161,7 @@ router.get('/:idOrSlug', async (req, res) => {
 });
 
 // Create product (Admin)
-router.post('/', authenticateAdmin, upload.single('image'), async (req, res) => {
+router.post('/', authenticateAdmin, upload.single('image'), logAdminActivity('Product Created', req => `Product Name: ${req.body?.name || 'Unknown'}`), async (req, res) => {
   try {
     let imageUrl = req.body.image;
 
@@ -122,7 +197,7 @@ router.post('/', authenticateAdmin, upload.single('image'), async (req, res) => 
 });
 
 // Update product (Admin)
-router.put('/:id', authenticateAdmin, upload.single('image'), async (req, res) => {
+router.put('/:id', authenticateAdmin, upload.single('image'), logAdminActivity('Product Updated', req => `Product ID: ${req.params.id}`), async (req, res) => {
   try {
     let imageUrl = req.body.image;
 
@@ -156,7 +231,7 @@ router.put('/:id', authenticateAdmin, upload.single('image'), async (req, res) =
 });
 
 // Delete product (Admin)
-router.delete('/:id', authenticateAdmin, async (req, res) => {
+router.delete('/:id', authenticateAdmin, logAdminActivity('Product Deleted', req => `Product ID: ${req.params.id}`), async (req, res) => {
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });

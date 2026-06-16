@@ -101,3 +101,78 @@ export const sendOrderConfirmationEmail = async (order: any, settings: any) => {
     }
   }
 };
+
+export const sendOrderShippedEmail = async (order: any, settings: any) => {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  const fromEmail = process.env.SENDGRID_FROM_EMAIL || settings?.contactEmail || 'noreply@rivore.com';
+
+  if (!apiKey || !order.customer.email) return;
+
+  sgMail.setApiKey(apiKey);
+
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h1 style="color: #0f172a; text-align: center;">Rivor&eacute;</h1>
+      <p style="color: #334155; line-height: 1.6;">Hello <strong>${order.customer.name}</strong>,</p>
+      <p style="color: #334155; line-height: 1.6;">Great news! Your order <strong>#${order._id.toString().slice(-6).toUpperCase()}</strong> has been handed over to the courier and is on its way to you.</p>
+      
+      ${order.delivery?.trackingCode ? `
+      <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+        <p style="margin: 0; color: #64748b; font-size: 14px;">Tracking Code</p>
+        <p style="margin: 5px 0 0; color: #0f172a; font-size: 18px; font-weight: bold; letter-spacing: 1px;">${order.delivery.trackingCode}</p>
+      </div>` : ''}
+
+      <div style="text-align: center; margin: 40px 0;">
+        <a href="${process.env.FRONTEND_URL || 'https://rivore.com'}/account/orders/${order._id}" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 500;">Track Your Order</a>
+      </div>
+    </div>
+  `;
+
+  const msg = {
+    to: order.customer.email,
+    from: fromEmail,
+    subject: `Your Order #${order._id.toString().slice(-6).toUpperCase()} has Shipped! - Rivoré`,
+    html,
+  };
+
+  try {
+    await sgMail.send(msg);
+  } catch (error) {
+    console.error('Error sending shipped email:', error);
+  }
+};
+
+export const sendOrderDeliveredEmail = async (order: any, settings: any) => {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  const fromEmail = process.env.SENDGRID_FROM_EMAIL || settings?.contactEmail || 'noreply@rivore.com';
+
+  if (!apiKey || !order.customer.email) return;
+
+  sgMail.setApiKey(apiKey);
+
+  const html = `
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h1 style="color: #0f172a; text-align: center;">Rivor&eacute;</h1>
+      <p style="color: #334155; line-height: 1.6;">Hello <strong>${order.customer.name}</strong>,</p>
+      <p style="color: #334155; line-height: 1.6;">Your order <strong>#${order._id.toString().slice(-6).toUpperCase()}</strong> has been marked as Delivered!</p>
+      <p style="color: #334155; line-height: 1.6;">We hope you love your new items. If you have any feedback or issues, please let us know.</p>
+      
+      <div style="text-align: center; margin: 40px 0;">
+        <a href="${process.env.FRONTEND_URL || 'https://rivore.com'}/account/orders/${order._id}" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: 500;">View Order Details</a>
+      </div>
+    </div>
+  `;
+
+  const msg = {
+    to: order.customer.email,
+    from: fromEmail,
+    subject: `Your Order #${order._id.toString().slice(-6).toUpperCase()} is Delivered - Rivoré`,
+    html,
+  };
+
+  try {
+    await sgMail.send(msg);
+  } catch (error) {
+    console.error('Error sending delivered email:', error);
+  }
+};

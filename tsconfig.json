@@ -23,5 +23,5 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "exclude": ["_tests_archive"]
+  "exclude": ["_tests_archive", "dist", "node_modules"]
 }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../../store/authStore';
-import { Plus, Trash2, X, Upload, Save, ChevronDown, Shield, Lock, Mail, Eye, EyeOff } from 'lucide-react';
+import { Plus, Trash2, X, Upload, Save, ChevronDown, Shield, Lock, Mail, Eye, EyeOff, Award } from 'lucide-react';
 import Loader from '../../components/Loader';
 
 const ICON_OPTIONS = [
@@ -17,8 +17,11 @@ const TABS = [
   { id: 'contact', label: 'Contact Page' },
   { id: 'categories', label: 'Categories & Filters' },
   { id: 'invoice', label: 'Invoice' },
-  { id: 'payment', label: 'Payment Gateways' },
   { id: 'delivery', label: 'Delivery Settings' },
+  { id: 'rewards', label: 'Rewards System' },
+  { id: 'tiers', label: 'Membership Tiers' },
+  { id: 'birthday', label: 'Birthday Rewards' },
+  { id: 'referral', label: 'Referral Program' },
   { id: 'social', label: 'Social Links' },
   { id: 'security', label: '🔐 Security' },
 ];
@@ -334,6 +337,36 @@ function SecurityCredentialSection({ token }: { token: string | null }) {
     </div>
   );
 }
+
+// ========== Turnstile Settings Component ==========
+function TurnstileSettingsSection({ settings, setSettings }: { settings: any; setSettings: (v: any) => void }) {
+  return (
+    <div className="space-y-6 mt-12 border-t border-border pt-8">
+      <div className="flex items-center gap-2 mb-4">
+        <Shield className="w-5 h-5 text-primary" />
+        <h3 className="font-semibold text-lg text-foreground">Cloudflare Turnstile</h3>
+      </div>
+      <div className="bg-muted/10 border border-border p-6 rounded-2xl">
+        <label className="flex items-center justify-between cursor-pointer">
+          <div className="space-y-1">
+            <span className="font-medium text-foreground">Enable Bot Protection</span>
+            <p className="text-sm text-muted-foreground">Protect login, registration, and checkout from bots using Cloudflare Turnstile.</p>
+          </div>
+          <div className="relative inline-flex items-center">
+            <input 
+              type="checkbox" 
+              className="sr-only peer" 
+              checked={settings.turnstileEnabled} 
+              onChange={(e) => setSettings({ ...settings, turnstileEnabled: e.target.checked })}
+            />
+            <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+          </div>
+        </label>
+      </div>
+    </div>
+  );
+}
+
 export default function Settings() {
   const { token } = useAuthStore();
   const [activeTab, setActiveTab] = useState('general');
@@ -380,6 +413,11 @@ export default function Settings() {
     paymentSslCommerz: { storeId: '', storePassword: '', enabled: false, isLive: false },
     paymentUddoktaPay: { apiKey: '', enabled: false, isLive: false },
     deliverySteadfast: { enabled: false, apiKey: '', secretKey: '', baseUrl: 'https://portal.packzy.com/api/v1', autoSend: false },
+    rewardSettings: { spendForOnePoint: 100, discountPerPoint: 1, enabled: true },
+    tierSettings: { enabled: true, silverSpend: 5000, silverDiscount: 5, goldSpend: 10000, goldDiscount: 10, platinumSpend: 15000, platinumDiscount: 20 },
+    birthdayRewardSettings: { enabled: true, discountType: 'percentage', discountAmount: 10 },
+    referralRewardSettings: { enabled: true, rewardPoints: 100 },
+    turnstileEnabled: true,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -427,6 +465,11 @@ export default function Settings() {
             paymentSslCommerz: { ...prev.paymentSslCommerz, ...data.paymentSslCommerz },
             paymentUddoktaPay: { ...prev.paymentUddoktaPay, ...data.paymentUddoktaPay },
             deliverySteadfast: { ...prev.deliverySteadfast, ...data.deliverySteadfast },
+            rewardSettings: { ...prev.rewardSettings, ...data.rewardSettings },
+            tierSettings: { ...prev.tierSettings, ...data.tierSettings },
+            birthdayRewardSettings: { ...prev.birthdayRewardSettings, ...data.birthdayRewardSettings },
+            referralRewardSettings: { ...prev.referralRewardSettings, ...data.referralRewardSettings },
+            turnstileEnabled: data.turnstileEnabled ?? true,
           }));
         }
         if (productsRes.ok) {
@@ -1215,80 +1258,7 @@ export default function Settings() {
           </div>
         )}
 
-        {/* ============ PAYMENT GATEWAYS ============ */}
-        {activeTab === 'payment' && (
-          <div className="space-y-8">
-            <h2 className="text-xl font-serif font-semibold text-foreground pb-4 border-b border-border">Payment Gateways</h2>
-            <p className="text-sm text-muted-foreground">Configure your payment gateway credentials. Enable gateways to offer online payment during checkout.</p>
 
-            {/* bKash */}
-            <div className="bg-[#E2136E]/5 p-6 rounded-2xl border border-[#E2136E]/20">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#E2136E] rounded-xl flex items-center justify-center text-white font-bold text-sm">bK</div>
-                  <h3 className="text-lg font-semibold text-foreground">bKash Merchant</h3>
-                </div>
-                <button type="button" onClick={() => setSettings((prev: any) => ({ ...prev, paymentBkash: { ...prev.paymentBkash, enabled: !prev.paymentBkash.enabled } }))} className={`relative w-11 h-6 rounded-full transition-colors ${settings.paymentBkash.enabled ? 'bg-[#E2136E]' : 'bg-gray-300'}`}>
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform shadow ${settings.paymentBkash.enabled ? 'translate-x-5' : 'translate-x-0'}`}></span>
-                </button>
-              </div>
-              {settings.paymentBkash.enabled && (
-                <div className="space-y-3 mt-4">
-                  <input type="text" value={settings.paymentBkash.merchantId} onChange={(e) => setSettings((prev: any) => ({ ...prev, paymentBkash: { ...prev.paymentBkash, merchantId: e.target.value } }))} placeholder="Merchant Wallet Number" className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-[#E2136E]/30 outline-none text-sm" />
-                  <input type="text" value={settings.paymentBkash.apiKey} onChange={(e) => setSettings((prev: any) => ({ ...prev, paymentBkash: { ...prev.paymentBkash, apiKey: e.target.value } }))} placeholder="API Key (App Key)" className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-[#E2136E]/30 outline-none text-sm" />
-                  <input type="password" value={settings.paymentBkash.apiSecret} onChange={(e) => setSettings((prev: any) => ({ ...prev, paymentBkash: { ...prev.paymentBkash, apiSecret: e.target.value } }))} placeholder="API Secret (App Secret)" className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-[#E2136E]/30 outline-none text-sm" />
-                </div>
-              )}
-            </div>
-
-            {/* SSLCommerz */}
-            <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-200/30">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xs">SSL</div>
-                  <h3 className="text-lg font-semibold text-foreground">SSLCommerz</h3>
-                </div>
-                <button type="button" onClick={() => setSettings((prev: any) => ({ ...prev, paymentSslCommerz: { ...prev.paymentSslCommerz, enabled: !prev.paymentSslCommerz.enabled } }))} className={`relative w-11 h-6 rounded-full transition-colors ${settings.paymentSslCommerz.enabled ? 'bg-blue-600' : 'bg-gray-300'}`}>
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform shadow ${settings.paymentSslCommerz.enabled ? 'translate-x-5' : 'translate-x-0'}`}></span>
-                </button>
-              </div>
-              {settings.paymentSslCommerz.enabled && (
-                <div className="space-y-3 mt-4">
-                  <input type="text" value={settings.paymentSslCommerz.storeId} onChange={(e) => setSettings((prev: any) => ({ ...prev, paymentSslCommerz: { ...prev.paymentSslCommerz, storeId: e.target.value } }))} placeholder="Store ID" className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-blue-500/30 outline-none text-sm" />
-                  <input type="password" value={settings.paymentSslCommerz.storePassword} onChange={(e) => setSettings((prev: any) => ({ ...prev, paymentSslCommerz: { ...prev.paymentSslCommerz, storePassword: e.target.value } }))} placeholder="Store Password" className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-blue-500/30 outline-none text-sm" />
-                  <label className="flex items-center gap-2 cursor-pointer pt-2">
-                    <input type="checkbox" checked={settings.paymentSslCommerz.isLive} onChange={(e) => setSettings((prev: any) => ({ ...prev, paymentSslCommerz: { ...prev.paymentSslCommerz, isLive: e.target.checked } }))} className="w-4 h-4 accent-blue-600" />
-                    <span className="text-sm text-foreground font-medium">Live Mode</span>
-                    <span className="text-xs text-muted-foreground">(uncheck for sandbox/testing)</span>
-                  </label>
-                </div>
-              )}
-            </div>
-
-            {/* UddoktaPay */}
-            <div className="bg-green-50/50 p-6 rounded-2xl border border-green-200/30">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-green-600 rounded-xl flex items-center justify-center text-white font-bold text-xs">UP</div>
-                  <h3 className="text-lg font-semibold text-foreground">UddoktaPay</h3>
-                </div>
-                <button type="button" onClick={() => setSettings((prev: any) => ({ ...prev, paymentUddoktaPay: { ...prev.paymentUddoktaPay, enabled: !prev.paymentUddoktaPay.enabled } }))} className={`relative w-11 h-6 rounded-full transition-colors ${settings.paymentUddoktaPay.enabled ? 'bg-green-600' : 'bg-gray-300'}`}>
-                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform shadow ${settings.paymentUddoktaPay.enabled ? 'translate-x-5' : 'translate-x-0'}`}></span>
-                </button>
-              </div>
-              {settings.paymentUddoktaPay.enabled && (
-                <div className="space-y-3 mt-4">
-                  <input type="text" value={settings.paymentUddoktaPay.apiKey} onChange={(e) => setSettings((prev: any) => ({ ...prev, paymentUddoktaPay: { ...prev.paymentUddoktaPay, apiKey: e.target.value } }))} placeholder="API Key" className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-green-500/30 outline-none text-sm" />
-                  <label className="flex items-center gap-2 cursor-pointer pt-2">
-                    <input type="checkbox" checked={settings.paymentUddoktaPay.isLive} onChange={(e) => setSettings((prev: any) => ({ ...prev, paymentUddoktaPay: { ...prev.paymentUddoktaPay, isLive: e.target.checked } }))} className="w-4 h-4 accent-green-600" />
-                    <span className="text-sm text-foreground font-medium">Live Mode</span>
-                    <span className="text-xs text-muted-foreground">(uncheck for sandbox/testing)</span>
-                  </label>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* ============ DELIVERY SETTINGS ============ */}
         {activeTab === 'delivery' && (
@@ -1370,6 +1340,267 @@ export default function Settings() {
           </div>
         )}
 
+        {/* ============ REWARDS SYSTEM ============ */}
+        {activeTab === 'rewards' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-serif font-semibold text-foreground pb-4 border-b border-border">Loyalty Rewards System</h2>
+            <p className="text-sm text-muted-foreground mb-6">Configure how customers earn and redeem loyalty points.</p>
+            
+            <div className="bg-amber-50/50 p-6 rounded-2xl border border-amber-200/30">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-white">
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">Rewards Program</h3>
+                    <div className="flex items-center gap-2">
+                       <span className={`w-2 h-2 rounded-full ${settings.rewardSettings?.enabled ? 'bg-emerald-500' : 'bg-gray-400'}`}></span>
+                       <span className="text-xs text-muted-foreground font-medium">{settings.rewardSettings?.enabled ? 'Active' : 'Disabled'}</span>
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setSettings((prev: any) => ({ ...prev, rewardSettings: { ...prev.rewardSettings, enabled: !prev.rewardSettings?.enabled } }))} 
+                  className={`relative w-12 h-6.5 rounded-full transition-colors ${settings.rewardSettings?.enabled ? 'bg-amber-500' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute top-1 left-1 w-4.5 h-4.5 bg-white rounded-full transition-transform shadow ${settings.rewardSettings?.enabled ? 'translate-x-5.5' : 'translate-x-0'}`}></span>
+                </button>
+              </div>
+
+              {settings.rewardSettings?.enabled && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider ml-1">Spend for 1 Point (৳)</label>
+                      <input 
+                        type="number" 
+                        min="1"
+                        value={settings.rewardSettings?.spendForOnePoint || 100} 
+                        onChange={(e) => setSettings((prev: any) => ({ ...prev, rewardSettings: { ...prev.rewardSettings, spendForOnePoint: Number(e.target.value) } }))} 
+                        className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-amber-500/30 outline-none text-sm transition-all shadow-sm" 
+                      />
+                      <p className="text-xs text-muted-foreground mt-2 ml-1">Customer spends ৳{settings.rewardSettings?.spendForOnePoint || 100} to earn 1 point.</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider ml-1">Discount per Point (৳)</label>
+                      <input 
+                        type="number" 
+                        min="0"
+                        step="0.01"
+                        value={settings.rewardSettings?.discountPerPoint || 1} 
+                        onChange={(e) => setSettings((prev: any) => ({ ...prev, rewardSettings: { ...prev.rewardSettings, discountPerPoint: Number(e.target.value) } }))} 
+                        className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-amber-500/30 outline-none text-sm transition-all shadow-sm" 
+                      />
+                      <p className="text-xs text-muted-foreground mt-2 ml-1">1 point equals ৳{settings.rewardSettings?.discountPerPoint || 1} discount.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ============ MEMBERSHIP TIERS ============ */}
+        {activeTab === 'tiers' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-serif font-semibold text-foreground pb-4 border-b border-border">Membership Tiers</h2>
+            <p className="text-sm text-muted-foreground mb-6">Configure automatic membership tiers and discounts based on customers' lifetime spend.</p>
+            
+            <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-200/30">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white">
+                    <Award className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">Tier System</h3>
+                    <div className="flex items-center gap-2">
+                       <span className={`w-2 h-2 rounded-full ${settings.tierSettings?.enabled ? 'bg-emerald-500' : 'bg-gray-400'}`}></span>
+                       <span className="text-xs text-muted-foreground font-medium">{settings.tierSettings?.enabled ? 'Active' : 'Disabled'}</span>
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setSettings((prev: any) => ({ ...prev, tierSettings: { ...prev.tierSettings, enabled: !prev.tierSettings?.enabled } }))} 
+                  className={`relative w-12 h-6.5 rounded-full transition-colors ${settings.tierSettings?.enabled ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute top-1 left-1 w-4.5 h-4.5 bg-white rounded-full transition-transform shadow ${settings.tierSettings?.enabled ? 'translate-x-5.5' : 'translate-x-0'}`}></span>
+                </button>
+              </div>
+
+              {settings.tierSettings?.enabled && (
+                <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
+                  
+                  {/* Silver */}
+                  <div className="bg-white p-4 rounded-xl border border-border shadow-sm">
+                    <h4 className="font-semibold text-gray-700 flex items-center gap-2 mb-4">
+                      <span className="w-3 h-3 rounded-full bg-gray-400"></span> Silver Tier
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider ml-1">Spend Threshold (৳)</label>
+                        <input type="number" min="0" value={settings.tierSettings.silverSpend} onChange={(e) => setSettings((prev: any) => ({ ...prev, tierSettings: { ...prev.tierSettings, silverSpend: Number(e.target.value) } }))} className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-indigo-500/30 outline-none text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider ml-1">Discount (%)</label>
+                        <input type="number" min="0" max="100" value={settings.tierSettings.silverDiscount} onChange={(e) => setSettings((prev: any) => ({ ...prev, tierSettings: { ...prev.tierSettings, silverDiscount: Number(e.target.value) } }))} className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-indigo-500/30 outline-none text-sm" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Gold */}
+                  <div className="bg-white p-4 rounded-xl border border-border shadow-sm">
+                    <h4 className="font-semibold text-yellow-600 flex items-center gap-2 mb-4">
+                      <span className="w-3 h-3 rounded-full bg-yellow-500"></span> Gold Tier
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider ml-1">Spend Threshold (৳)</label>
+                        <input type="number" min="0" value={settings.tierSettings.goldSpend} onChange={(e) => setSettings((prev: any) => ({ ...prev, tierSettings: { ...prev.tierSettings, goldSpend: Number(e.target.value) } }))} className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-indigo-500/30 outline-none text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider ml-1">Discount (%)</label>
+                        <input type="number" min="0" max="100" value={settings.tierSettings.goldDiscount} onChange={(e) => setSettings((prev: any) => ({ ...prev, tierSettings: { ...prev.tierSettings, goldDiscount: Number(e.target.value) } }))} className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-indigo-500/30 outline-none text-sm" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Platinum */}
+                  <div className="bg-white p-4 rounded-xl border border-border shadow-sm">
+                    <h4 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
+                      <span className="w-3 h-3 rounded-full bg-gray-900"></span> Platinum Tier
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider ml-1">Spend Threshold (৳)</label>
+                        <input type="number" min="0" value={settings.tierSettings.platinumSpend} onChange={(e) => setSettings((prev: any) => ({ ...prev, tierSettings: { ...prev.tierSettings, platinumSpend: Number(e.target.value) } }))} className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-indigo-500/30 outline-none text-sm" />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider ml-1">Discount (%)</label>
+                        <input type="number" min="0" max="100" value={settings.tierSettings.platinumDiscount} onChange={(e) => setSettings((prev: any) => ({ ...prev, tierSettings: { ...prev.tierSettings, platinumDiscount: Number(e.target.value) } }))} className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-indigo-500/30 outline-none text-sm" />
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ============ BIRTHDAY REWARDS ============ */}
+        {activeTab === 'birthday' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-serif font-semibold text-foreground pb-4 border-b border-border">Birthday Rewards</h2>
+            <p className="text-sm text-muted-foreground mb-6">Configure automated birthday coupons sent to customers.</p>
+            
+            <div className="bg-pink-50/50 p-6 rounded-2xl border border-pink-200/30">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-pink-500 rounded-xl flex items-center justify-center text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 12 20 22 4 22 4 12"></polyline><rect x="2" y="7" width="20" height="5"></rect><line x1="12" y1="22" x2="12" y2="7"></line><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"></path><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"></path></svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">Birthday System</h3>
+                    <div className="flex items-center gap-2">
+                       <span className={`w-2 h-2 rounded-full ${settings.birthdayRewardSettings?.enabled ? 'bg-emerald-500' : 'bg-gray-400'}`}></span>
+                       <span className="text-xs text-muted-foreground font-medium">{settings.birthdayRewardSettings?.enabled ? 'Active' : 'Disabled'}</span>
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setSettings((prev: any) => ({ ...prev, birthdayRewardSettings: { ...prev.birthdayRewardSettings, enabled: !prev.birthdayRewardSettings?.enabled } }))} 
+                  className={`relative w-12 h-6.5 rounded-full transition-colors ${settings.birthdayRewardSettings?.enabled ? 'bg-pink-500' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute top-1 left-1 w-4.5 h-4.5 bg-white rounded-full transition-transform shadow ${settings.birthdayRewardSettings?.enabled ? 'translate-x-5.5' : 'translate-x-0'}`}></span>
+                </button>
+              </div>
+
+              {settings.birthdayRewardSettings?.enabled && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider ml-1">Discount Type</label>
+                      <select 
+                        value={settings.birthdayRewardSettings?.discountType || 'percentage'} 
+                        onChange={(e) => setSettings((prev: any) => ({ ...prev, birthdayRewardSettings: { ...prev.birthdayRewardSettings, discountType: e.target.value } }))} 
+                        className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-pink-500/30 outline-none text-sm transition-all shadow-sm bg-white" 
+                      >
+                        <option value="percentage">Percentage (%)</option>
+                        <option value="flat">Flat Amount (৳)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider ml-1">Discount Amount</label>
+                      <input 
+                        type="number" 
+                        min="1"
+                        value={settings.birthdayRewardSettings?.discountAmount || 10} 
+                        onChange={(e) => setSettings((prev: any) => ({ ...prev, birthdayRewardSettings: { ...prev.birthdayRewardSettings, discountAmount: Number(e.target.value) } }))} 
+                        className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-pink-500/30 outline-none text-sm transition-all shadow-sm" 
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ============ REFERRAL PROGRAM ============ */}
+        {activeTab === 'referral' && (
+          <div className="space-y-6">
+            <h2 className="text-xl font-serif font-semibold text-foreground pb-4 border-b border-border">Referral Program</h2>
+            <p className="text-sm text-muted-foreground mb-6">Reward customers for inviting their friends. Points are awarded when the referred friend's first order is delivered.</p>
+            
+            <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-200/30">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground">Referral System</h3>
+                    <div className="flex items-center gap-2">
+                       <span className={`w-2 h-2 rounded-full ${settings.referralRewardSettings?.enabled ? 'bg-emerald-500' : 'bg-gray-400'}`}></span>
+                       <span className="text-xs text-muted-foreground font-medium">{settings.referralRewardSettings?.enabled ? 'Active' : 'Disabled'}</span>
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  type="button" 
+                  onClick={() => setSettings((prev: any) => ({ ...prev, referralRewardSettings: { ...prev.referralRewardSettings, enabled: !prev.referralRewardSettings?.enabled } }))} 
+                  className={`relative w-12 h-6.5 rounded-full transition-colors ${settings.referralRewardSettings?.enabled ? 'bg-indigo-500' : 'bg-gray-300'}`}
+                >
+                  <span className={`absolute top-1 left-1 w-4.5 h-4.5 bg-white rounded-full transition-transform shadow ${settings.referralRewardSettings?.enabled ? 'translate-x-5.5' : 'translate-x-0'}`}></span>
+                </button>
+              </div>
+
+              {settings.referralRewardSettings?.enabled && (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wider ml-1">Reward Points per Referral</label>
+                      <input 
+                        type="number" 
+                        min="1"
+                        value={settings.referralRewardSettings?.rewardPoints || 100} 
+                        onChange={(e) => setSettings((prev: any) => ({ ...prev, referralRewardSettings: { ...prev.referralRewardSettings, rewardPoints: Number(e.target.value) } }))} 
+                        className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-indigo-500/30 outline-none text-sm transition-all shadow-sm" 
+                      />
+                      <p className="text-xs text-muted-foreground mt-2 ml-1">Points awarded to the referrer after the friend's first delivered order.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ============ SOCIAL LINKS ============ */}
         {activeTab === 'social' && (
           <div className="space-y-6">
@@ -1397,12 +1628,12 @@ export default function Settings() {
         )}
 
         {/* ============ SECURITY (CREDENTIAL CHANGE) ============ */}
-        {activeTab === 'security' && (() => {
-          // This is a self-contained section, not part of the settings save form
-          return (
+        {activeTab === 'security' && (
+          <div className="space-y-6">
             <SecurityCredentialSection token={token} />
-          );
-        })()}
+            <TurnstileSettingsSection settings={settings} setSettings={setSettings} />
+          </div>
+        )}
 
         {/* Global Save Button */}
         <div className="pt-6 border-t border-border flex justify-end">

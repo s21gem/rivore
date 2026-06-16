@@ -185,6 +185,35 @@ export default function Orders() {
     }
   };
 
+  const handleInitiateRefund = async (id: string) => {
+    const reason = prompt('Enter refund reason:');
+    if (!reason) return;
+    
+    try {
+      const res = await fetch(`/api/orders/${id}/refund`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ reason })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast.success('Refund initiated successfully');
+        setOrders(prev => prev.map(o => o._id === id ? data.order : o));
+        if (selectedOrder && selectedOrder._id === id) {
+          setSelectedOrder(data.order);
+        }
+      } else {
+        toast.error(data.message || 'Failed to initiate refund');
+      }
+    } catch (error) {
+      console.error('Refund error:', error);
+      toast.error('Error initiating refund');
+    }
+  };
+
   const filteredOrders = filterStatus === 'All' 
     ? orders 
     : orders.filter(o => o.status === filterStatus);
@@ -192,9 +221,14 @@ export default function Orders() {
   const getStatusBadge = (status: string) => {
     switch(status) {
       case 'Pending': return 'bg-yellow-500/10 text-yellow-700';
+      case 'Confirmed': return 'bg-teal-500/10 text-teal-700';
+      case 'Processing': return 'bg-indigo-500/10 text-indigo-700';
+      case 'Packed': return 'bg-orange-500/10 text-orange-700';
+      case 'Courier Received': return 'bg-cyan-500/10 text-cyan-700';
+      case 'In Transit': return 'bg-blue-500/10 text-blue-700';
+      case 'Shipped': return 'bg-blue-500/10 text-blue-700';
       case 'Called': return 'bg-slate-500/10 text-slate-700';
-      case 'Confirmed': return 'bg-green-500/10 text-green-700';
-      case 'Delivered': return 'bg-blue-500/10 text-blue-700';
+      case 'Delivered': return 'bg-green-500/10 text-green-700';
       case 'Cancelled': return 'bg-red-500/10 text-red-700';
       default: return 'bg-muted text-muted-foreground';
     }
@@ -204,7 +238,7 @@ export default function Orders() {
     return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin"></div></div>;
   }
 
-  const tabs = ['All', 'Pending', 'Called', 'Confirmed', 'Delivered', 'Cancelled'];
+  const tabs = ['All', 'Pending', 'Confirmed', 'Processing', 'Packed', 'Courier Received', 'In Transit', 'Delivered', 'Cancelled'];
 
   return (
     <>
@@ -417,10 +451,26 @@ export default function Orders() {
                          <option value="Pending">🟡 Pending</option>
                          <option value="Called">🌚 Called</option>
                          <option value="Confirmed">🟢 Confirmed</option>
-                         <option value="Delivered">🔵 Delivered</option>
+                         <option value="Processing">⚙️ Processing</option>
+                         <option value="Packed">📦 Packed</option>
+                         <option value="Courier Received">🏢 Courier Received</option>
+                         <option value="In Transit">🚚 In Transit</option>
+                         <option value="Shipped">🚚 Shipped</option>
+                         <option value="Delivered">✅ Delivered</option>
                          <option value="Cancelled">🔴 Cancelled</option>
                        </select>
                      </div>
+
+                     {selectedOrder.paymentStatus === 'Paid' && (
+                        <div className="pt-4 mt-2 border-t border-border">
+                          <button
+                            onClick={() => handleInitiateRefund(selectedOrder._id)}
+                            className="w-full bg-orange-50 text-orange-700 hover:bg-orange-100 py-2.5 rounded-lg text-sm font-medium transition-colors border border-orange-200"
+                          >
+                            Initiate Refund
+                          </button>
+                        </div>
+                     )}
 
                      <div className="pt-4 mt-2 border-t border-border">
                         <label className="block text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-3 mt-1">Courier Fulfillment (Steadfast)</label>
@@ -512,6 +562,56 @@ export default function Orders() {
                   </tbody>
                 </table>
               </div>
+
+              {/* Payment Details Section */}
+              {selectedOrder.paymentDetails && (
+                <div className="mb-8">
+                  <h3 className="text-[10px] uppercase tracking-[0.2em] font-medium text-muted-foreground mb-4">Payment Information (UddoktaPay)</h3>
+                  <div className="bg-muted p-6 rounded-xl border border-border grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground mb-1">Transaction ID</p>
+                      <p className="font-mono font-medium">{selectedOrder.paymentDetails.transaction_id || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-1">Sender Number</p>
+                      <p className="font-mono font-medium">{selectedOrder.paymentDetails.sender_number || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-1">Charged Amount</p>
+                      <p className="font-medium">৳{selectedOrder.paymentDetails.charged_amount || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-1">Date & Time</p>
+                      <p className="font-medium">{selectedOrder.paymentDetails.payment_date || selectedOrder.paymentDetails.verification_time}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Refund Details Section */}
+              {selectedOrder.refundDetails && selectedOrder.refundDetails.refundStatus !== 'None' && (
+                <div className="mb-8">
+                  <h3 className="text-[10px] uppercase tracking-[0.2em] font-medium text-muted-foreground mb-4">Refund Information</h3>
+                  <div className={`p-6 rounded-xl border grid grid-cols-1 md:grid-cols-2 gap-4 text-sm ${selectedOrder.refundDetails.refundStatus === 'Processed' ? 'bg-green-50 border-green-200' : 'bg-orange-50 border-orange-200'}`}>
+                    <div>
+                      <p className="text-muted-foreground mb-1 text-xs">Status</p>
+                      <p className="font-bold uppercase">{selectedOrder.refundDetails.refundStatus}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-1 text-xs">Reason</p>
+                      <p className="font-medium">{selectedOrder.refundDetails.refundReason || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-1 text-xs">Amount to Refund</p>
+                      <p className="font-medium">৳{selectedOrder.refundDetails.refundAmount || 0}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground mb-1 text-xs">Requested By</p>
+                      <p className="font-medium">{selectedOrder.refundDetails.refundRequestedBy || 'System'}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-between items-center p-6 bg-muted rounded-xl border border-border shadow-inner">
                 <div>

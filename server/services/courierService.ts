@@ -95,3 +95,39 @@ export const sendOrderToSteadfast = async (order: IOrder) => {
     };
   }
 };
+
+/**
+ * Checks order status from Steadfast Courier
+ */
+export const checkSteadfastStatus = async (consignmentId: string) => {
+  try {
+    const settings = await Settings.findOne();
+    if (!settings || !settings.deliverySteadfast || !settings.deliverySteadfast.enabled) {
+      return null;
+    }
+
+    const { apiKey, secretKey, baseUrl } = settings.deliverySteadfast;
+
+    // Implementation of real-time check. Steadfast endpoint is typically /status_by_cid/:id
+    const response = await axios.get(`${baseUrl}/status_by_cid/${consignmentId}`, {
+      headers: {
+        'Api-Key': apiKey,
+        'Secret-Key': secretKey,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.data && response.data.status === 200) {
+      return {
+        success: true,
+        delivery_status: response.data.delivery_status || null, // e.g., 'delivered', 'in_transit'
+        data: response.data
+      };
+    }
+
+    return null;
+  } catch (error: any) {
+    console.error('Steadfast Status Check Error:', error.response?.data || error.message);
+    return null;
+  }
+};

@@ -8,6 +8,9 @@ import { toast } from 'sonner';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSettingsStore } from '../store/settingsStore';
 import { useAutoScroll } from '../utils/useAutoScroll';
+import { useCustomerAuthStore } from '../store/customerAuthStore';
+import Recommendations from '../components/Recommendations';
+import { CloudinaryImage } from '../components/ui/CloudinaryImage';
 
 export default function ProductDetails() {
   const { id } = useParams();
@@ -22,6 +25,7 @@ export default function ProductDetails() {
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [activeImage, setActiveImage] = useState(0);
   const [showStickyBar, setShowStickyBar] = useState(false);
+  const { token } = useCustomerAuthStore();
 
   const productSectionRef = useRef<HTMLDivElement>(null);
   const { scrollRef: relatedProductsScrollRef, handlers: relatedProductsScrollHandlers } = useAutoScroll(0.8);
@@ -103,6 +107,20 @@ export default function ProductDetails() {
   useEffect(() => {
     fetchSettings();
   }, [fetchSettings]);
+
+  // Track product view
+  useEffect(() => {
+    if (product && token) {
+      fetch('/api/customer/track/view', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ productId: product._id || product.id })
+      }).catch(err => console.error('Failed to track product view:', err));
+    }
+  }, [product, token]);
 
   // Primary: IntersectionObserver on the product section
   useEffect(() => {
@@ -222,12 +240,12 @@ export default function ProductDetails() {
               className="relative aspect-square w-full max-w-[350px] md:max-w-[400px] lg:max-w-[450px] mx-auto flex items-center justify-center p-2 rounded-[2.5rem] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.04)] bg-[#faf8ff] border border-[#eeeeee] group"
             >
               <div className="absolute inset-0 m-auto w-2/3 h-2/3 bg-white blur-[80px] rounded-full pointer-events-none"></div>
-              <img
+              <CloudinaryImage
                 src={product.images?.[activeImage] || product.image || 'https://via.placeholder.com/800x1000'}
                 alt={product.name}
                 className="w-full h-full object-contain relative z-10 group-hover:-translate-y-4 group-hover:scale-105 transition-all duration-700"
-                referrerPolicy="no-referrer"
-                onError={(e) => { (e.target as HTMLImageElement).src = '/apple-touch-icon.png' }}
+                width={800}
+                loading="eager"
               />
 
               {product.images && product.images.length > 1 && (
@@ -256,7 +274,7 @@ export default function ProductDetails() {
                     className={`relative w-24 aspect-square rounded-xl overflow-hidden border-2 transition-all p-2 flex items-center justify-center bg-[#faf8ff] ${activeImage === idx ? 'border-[#111111] shadow-md scale-105' : 'border-transparent opacity-70 hover:opacity-100 hover:scale-105 hover:border-[#cccccc]'
                       }`}
                   >
-                    <img src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-contain" referrerPolicy="no-referrer" onError={(e) => { (e.target as HTMLImageElement).src = '/apple-touch-icon.png' }} />
+                    <CloudinaryImage src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-contain" width={200} />
                   </button>
                 ))}
               </div>
@@ -407,14 +425,11 @@ export default function ProductDetails() {
             <div className="w-full md:w-1/2">
               <div className="relative w-full h-full min-h-[350px] rounded-[2.5rem] bg-transparent overflow-hidden border-0 flex items-center justify-center group" style={{ perspective: '1000px' }}>
                 
-                <img 
+                <CloudinaryImage 
                   src={product.notesImage || settings?.fragranceNotesImage || "/notes-transparent.png"} 
                   alt="Fragrance Ingredients" 
                   className="object-contain w-full h-full p-10 transform transition-all duration-700 ease-out group-hover:scale-105 group-hover:-translate-y-3"
-                  onError={(e) => { 
-                    (e.target as HTMLImageElement).src = 'https://cdn-icons-png.flaticon.com/512/5101/5101037.png';
-                    (e.target as HTMLImageElement).style.opacity = '0.04';
-                  }}
+                  width={800}
                 />
                 
                 {/* Fallback internal text */}
@@ -486,16 +501,14 @@ export default function ProductDetails() {
                                 </div>
                                 {/* Warm base glow */}
                                 <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 h-1/3 bg-gradient-to-t from-[#C9A96E]/[0.08] to-transparent blur-[40px] pointer-events-none"></div>
-                                {/* Product Image - Floating */}
                                 <div className="absolute inset-0 flex items-center justify-center p-8">
-                                  <img
+                                  <CloudinaryImage
                                     src={displayImage}
                                     alt={relatedProduct.name}
                                     className="w-full h-full object-contain relative z-10 transform -translate-y-[6px] scale-[1.02] group-hover/card:-translate-y-4 group-hover/card:scale-[1.07] transition-all duration-500 ease-out"
                                     style={{ padding: '2rem' }}
-                                    referrerPolicy="no-referrer"
+                                    width={400}
                                     loading="lazy"
-                                    onError={(e) => { (e.target as HTMLImageElement).src = '/apple-touch-icon.png' }}
                                   />
                                 </div>
                                 {/* Light sweep on hover */}
@@ -520,6 +533,11 @@ export default function ProductDetails() {
             </div>
           </motion.div>
         )}
+        
+        {/* Personalized Recommendations */}
+        <div className="mt-16">
+          <Recommendations title="Recommended For You" limit={4} />
+        </div>
       </div>
 
       {/* Sticky Product Bar */}
@@ -536,12 +554,11 @@ export default function ProductDetails() {
               {/* Left: Product info */}
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-10 h-10 flex-shrink-0 rounded-xl overflow-hidden bg-[#f8f5ff] border border-[#eeeeee] flex items-center justify-center p-1">
-                  <img
+                  <CloudinaryImage
                     src={product?.image || product?.images?.[0] || '/apple-touch-icon.png'}
                     alt={product?.name || 'Product'}
                     className="w-full h-full object-contain"
-                    referrerPolicy="no-referrer"
-                    onError={(e) => { (e.target as HTMLImageElement).src = '/apple-touch-icon.png' }}
+                    width={100}
                   />
                 </div>
                 <div className="min-w-0">

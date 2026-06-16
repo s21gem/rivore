@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, Navigate, Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Package, Layers, ShoppingCart, Settings, LogOut, Menu, X, MessageSquare, Globe, Sun, Moon, Tag } from 'lucide-react';
+import { LayoutDashboard, Package, Layers, ShoppingCart, Settings, LogOut, Menu, X, MessageSquare, Globe, Sun, Moon, Tag, Image as ImageIcon, Shield, Users, CreditCard } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 
 export default function AdminLayout() {
@@ -24,9 +24,14 @@ export default function AdminLayout() {
     { name: 'Products', path: '/admin/products', icon: Package },
     { name: 'Combos', path: '/admin/combos', icon: Layers },
     { name: 'Orders', path: '/admin/orders', icon: ShoppingCart },
+    { name: 'Customers', path: '/admin/customers', icon: Users },
     { name: 'Testimonials', path: '/admin/testimonials', icon: MessageSquare },
     { name: 'Coupons', path: '/admin/coupons', icon: Tag },
+    { name: 'Hero Media', path: '/admin/hero-media', icon: ImageIcon },
     { name: 'Settings & CMS', path: '/admin/settings', icon: Globe },
+    { name: 'Payment Center', path: '/admin/payment-methods', icon: CreditCard },
+    { name: 'Security Center', path: '/admin/security', icon: Shield },
+    { name: 'Activity Logs', path: '/admin/activity-logs', icon: Layers },
   ];
 
   return (

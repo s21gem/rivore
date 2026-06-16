@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { TurnstileWidget } from '../components/TurnstileWidget';
 
 export default function Contact() {
   const [contactData, setContactData] = useState({
@@ -83,6 +84,10 @@ export default function Contact() {
                   ></textarea>
                 </div>
               </div>
+              <TurnstileWidget 
+                onVerify={(token) => console.log('Turnstile verified', token)}
+                onError={() => console.error('Turnstile failed')}
+              />
               <button 
                 type="submit" 
                 className="w-full bg-primary text-primary-foreground px-8 py-4 text-xs uppercase tracking-[0.2em] font-medium hover:bg-primary/90 transition-colors"

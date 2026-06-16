@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom';
-import { User, Package, MapPin, Award, Users, Settings, LogOut, Menu } from 'lucide-react';
+import { LayoutDashboard, Package, MapPin, Award, Users, Settings, LogOut, Menu, Crown, Truck, Heart, Ticket } from 'lucide-react';
 import { useCustomerAuthStore } from '../../store/customerAuthStore';
 
 export default function AccountLayout() {
@@ -23,12 +23,16 @@ export default function AccountLayout() {
   };
 
   const navLinks = [
-    { name: 'Profile', path: '/account/profile', icon: User },
-    { name: 'Orders', path: '/account/orders', icon: Package },
-    { name: 'Addresses', path: '/account/addresses', icon: MapPin },
-    { name: 'Rewards', path: '/account/rewards', icon: Award },
-    { name: 'Referrals', path: '/account/referrals', icon: Users },
-    { name: 'Settings', path: '/account/settings', icon: Settings },
+    { name: 'Dashboard', path: '/account', exact: true, icon: LayoutDashboard },
+    { name: 'Orders', path: '/account/orders', exact: false, icon: Package },
+    { name: 'Track Shipment', path: '/account/track', exact: false, icon: Truck },
+    { name: 'Addresses', path: '/account/addresses', exact: false, icon: MapPin },
+    { name: 'Rewards', path: '/account/rewards', exact: false, icon: Award },
+    { name: 'Membership', path: '/account/membership', exact: false, icon: Crown },
+    { name: 'Referrals', path: '/account/referrals', exact: false, icon: Users },
+    { name: 'Scent Collection', path: '/account/wishlist', exact: false, icon: Heart },
+    { name: 'Coupons', path: '/account/coupons', exact: false, icon: Ticket },
+    { name: 'Profile Settings', path: '/account/profile', exact: false, icon: Settings },
   ];
 
   return (
@@ -60,11 +64,15 @@ export default function AccountLayout() {
             <nav className="flex flex-col gap-2">
               {navLinks.map((link) => {
                 const Icon = link.icon;
-                const isActive = location.pathname.includes(link.path);
+                const isActive = link.exact 
+                  ? location.pathname === link.path 
+                  : location.pathname.startsWith(link.path);
+                  
                 return (
                   <NavLink
                     key={link.name}
                     to={link.path}
+                    end={link.exact}
                     onClick={() => setMobileMenuOpen(false)}
                     className={`flex items-center gap-3 px-5 py-4 rounded-2xl transition-all duration-300 font-medium ${
                       isActive 

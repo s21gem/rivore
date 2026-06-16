@@ -3,6 +3,9 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Clock, Sparkles, Gem, MapPin, Store } from 'lucide-react';
 import { useAutoScroll } from '../utils/useAutoScroll';
+import Recommendations from '../components/Recommendations';
+import { optimizeCloudinaryUrl } from '../utils/imageOptimizer';
+import { CloudinaryImage } from '../components/ui/CloudinaryImage';
 
 // Read pre-cached settings from inline script in index.html
 const getCachedSettings = () => (window as any).__SETTINGS_CACHE__ || null;
@@ -16,7 +19,7 @@ const SignatureCard = ({ product, index }: { product: any, index: number, key?: 
   };
   
   const content = signatureContent[product.name] || { tagline: product.name };
-  const displayImage = product.image || product.images?.[0] || 'https://via.placeholder.com/800x1000';
+  const displayImage = optimizeCloudinaryUrl(product.image || product.images?.[0] || 'https://via.placeholder.com/800x1000', 800);
 
   return (
     <motion.div 
@@ -33,23 +36,23 @@ const SignatureCard = ({ product, index }: { product: any, index: number, key?: 
               className="relative flex items-center justify-center p-0 h-full w-[240px] md:w-[400px] bg-transparent group-hover:scale-105 group-hover:-translate-y-4"
               style={{ transition: 'all 0.6s cubic-bezier(0.25, 1, 0.5, 1)' }}
             >
-              <img 
-                src={displayImage} 
+              <CloudinaryImage 
+                src={product.image || product.images?.[0] || 'https://via.placeholder.com/800x1000'} 
                 alt={product.name} 
+                width={800}
                 className={`w-full h-full object-contain z-10 transition-all duration-500 ${product.images?.length > 1 ? 'group-hover:opacity-0' : ''}`}
-                referrerPolicy="no-referrer" 
                 loading={index === 0 ? "eager" : "lazy"}
-                onError={(e) => { (e.target as HTMLImageElement).src = '/apple-touch-icon.png' }}
               />
               
               {product.images?.length > 1 && (
-                <img 
-                  src={product.images[1]} 
-                  alt={`${product.name} Hover`} 
-                  className="w-full h-full object-contain absolute inset-0 m-auto z-10 opacity-0 group-hover:opacity-100 transition-all duration-500" 
-                  referrerPolicy="no-referrer" 
-                  loading="lazy"
-                />
+                <div className="w-full h-full object-contain absolute inset-0 m-auto z-10 opacity-0 group-hover:opacity-100 transition-all duration-500">
+                  <CloudinaryImage 
+                    src={product.images[1]} 
+                    alt={`${product.name} Hover`} 
+                    width={800}
+                    loading="lazy"
+                  />
+                </div>
               )}
               
               {/* Stock Badge */}
@@ -100,6 +103,7 @@ export default function Home() {
   const [bestSellers, setBestSellers] = useState<any[]>([]);
   const [bestSellerIndex, setBestSellerIndex] = useState(0);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [heroMediaList, setHeroMediaList] = useState<any[]>([]);
 
   const { scrollRef: testimonialsScrollRef, handlers: testimonialsScrollHandlers } = useAutoScroll(0.5);
 
@@ -121,11 +125,17 @@ export default function Home() {
   useEffect(() => {
     const fetchFeatured = async () => {
       try {
-        const [productsRes, settingsRes] = await Promise.all([
+        const [productsRes, settingsRes, heroMediaRes] = await Promise.all([
           fetch('/api/products?limit=20'),
-          fetch('/api/settings')
+          fetch('/api/settings'),
+          fetch('/api/heroMedia/active')
         ]);
         
+        if (heroMediaRes.ok) {
+          const mediaData = await heroMediaRes.json();
+          setHeroMediaList(mediaData);
+        }
+
         let allProducts: any[] = [];
         if (productsRes.ok) {
           const data = await productsRes.json();
@@ -235,19 +245,24 @@ export default function Home() {
 
   // Setup auto-slide for hero carousel
   useEffect(() => {
+    // Determine active slides list
     const defaultImages = [
       'https://images.unsplash.com/photo-1615486171448-4df171221b06?q=80&w=1600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=1600&auto=format&fit=crop',
       'https://images.unsplash.com/photo-1594035910387-fea47794261f?q=80&w=1600&auto=format&fit=crop'
     ];
-    const displayHeroImages = heroImages.length > 0 ? heroImages : defaultImages;
-    if (displayHeroImages.length <= 1) return;
     
+    // If using the new HeroMedia manager, use its length, otherwise fallback
+    const slideCount = heroMediaList.length > 0 ? heroMediaList.length : (heroImages.length > 0 ? heroImages.length : defaultImages.length);
+
+    if (slideCount <= 1) return;
+    
+    // Auto slide only if the current media is NOT a video playing, but for simplicity we just interval unless paused.
     const interval = setInterval(() => {
-      setHeroBgIndex(prev => (prev + 1) % displayHeroImages.length);
+      setHeroBgIndex(prev => (prev + 1) % slideCount);
     }, 5000);
     return () => clearInterval(interval);
-  }, [heroImages.length]);
+  }, [heroImages.length, heroMediaList.length]);
 
   // Setup auto-slide for best sellers carousel
   useEffect(() => {
@@ -265,88 +280,211 @@ export default function Home() {
       <div className="luxury-blob luxury-blob-2" aria-hidden="true"></div>
       <div className="luxury-blob luxury-blob-3" aria-hidden="true"></div>
 
-      {/* Hero Section */}
-      <section className="relative min-h-[85dvh] md:h-screen w-full flex items-center justify-center overflow-hidden hero-glow z-10 bg-[#ffffff] pt-[56px] md:pt-[64px] pb-20 md:pb-0">
-        {/* Background carousel only */}
-        {(heroImages.length > 0 ? heroImages : [
-          'https://images.unsplash.com/photo-1615486171448-4df171221b06?q=80&w=1600&auto=format&fit=crop',
-          'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=1600&auto=format&fit=crop',
-          'https://images.unsplash.com/photo-1594035910387-fea47794261f?q=80&w=1600&auto=format&fit=crop'
-        ]).map((img, idx) => (
-          <img
-            key={idx}
-            src={img}
-            alt="Luxury Perfume"
-            className="absolute inset-0 w-full h-full object-cover z-0"
-            style={{ 
-              opacity: idx === heroBgIndex ? 1 : 0,
-              transition: 'opacity 1.5s ease-in-out'
-            }}
-            referrerPolicy="no-referrer"
-            loading={idx === 0 ? "eager" : "lazy"}
-          />
-        ))}
-        {(settings?.heroHeading || settings?.heroSubheading || settings?.heroButtonText) && (
-          <motion.div 
-            initial="hidden"
-            animate="visible"
-            variants={{
-              hidden: { opacity: 0 },
-              visible: {
-                opacity: 1,
-                transition: { staggerChildren: 0.2 }
+      {/* Dynamic Hero Section */}
+      <section className="relative min-h-[85dvh] md:h-screen w-full flex items-center justify-center overflow-hidden hero-glow z-10 bg-[#000000] pt-[56px] md:pt-[64px] pb-20 md:pb-0">
+        
+        {/* Render Active Slide or Fallback */}
+        {heroMediaList.length > 0 ? (
+          heroMediaList.map((media, idx) => {
+            const isActive = idx === heroBgIndex;
+            
+            // External Video Detection
+            let embedUrl = media.mediaUrl;
+            let isIframe = false;
+            if (media.type === 'video_url') {
+              if (embedUrl.includes('youtube.com') || embedUrl.includes('youtu.be')) {
+                const videoId = embedUrl.includes('youtu.be') ? embedUrl.split('/').pop() : new URL(embedUrl).searchParams.get('v');
+                embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=${media.autoplay ? 1 : 0}&mute=${media.muted ? 1 : 0}&loop=${media.loop ? 1 : 0}&controls=${media.controls ? 1 : 0}&playlist=${videoId}`;
+                isIframe = true;
+              } else if (embedUrl.includes('vimeo.com')) {
+                const videoId = embedUrl.split('/').pop();
+                embedUrl = `https://player.vimeo.com/video/${videoId}?background=${!media.controls ? 1 : 0}&autoplay=${media.autoplay ? 1 : 0}&loop=${media.loop ? 1 : 0}&muted=${media.muted ? 1 : 0}`;
+                isIframe = true;
+              } else if (embedUrl.includes('tiktok.com')) {
+                const videoId = embedUrl.split('/video/')[1];
+                embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
+                isIframe = true;
               }
-            }}
-            className="relative z-20 text-center px-5 md:px-12 py-8 md:py-10 max-w-4xl mx-auto backdrop-blur-md bg-white/40 border border-white/30 shadow-[0_8px_32px_rgba(0,0,0,0.1)] rounded-[2rem] md:rounded-[2.5rem] drop-shadow-xl"
-          >
-            {settings?.heroHeading && (
-              <motion.h1
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                transition={{ duration: 0.8 }}
-                className="text-3xl md:text-6xl font-serif font-bold mb-3 md:mb-4 tracking-tight leading-tight"
-                style={{ color: settings.heroHeadingColor || '#111111' }}
+            }
+
+            return (
+              <div 
+                key={media._id} 
+                className="absolute inset-0 w-full h-full"
+                style={{ 
+                  opacity: isActive ? 1 : 0,
+                  transition: 'opacity 1.5s ease-in-out',
+                  zIndex: isActive ? 1 : 0,
+                  pointerEvents: isActive ? 'auto' : 'none'
+                }}
               >
-                {settings.heroHeading}
-              </motion.h1>
-            )}
-            {settings?.heroSubheading && (
-              <motion.p
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                transition={{ duration: 0.8 }}
-                className="text-base md:text-xl mb-8 font-medium max-w-2xl mx-auto"
-                style={{ color: settings.heroSubheadingColor || '#333333' }}
-              >
-                {settings.heroSubheading}
-              </motion.p>
-            )}
-            {(settings?.heroButtonText || settings?.heroButtonLink) && (
-              <motion.div
-                variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-                transition={{ duration: 0.8 }}
-                className="flex flex-col sm:flex-row items-center justify-center gap-4"
-              >
-                {settings?.heroButtonText && settings?.heroButtonLink && (
-                  <Link
-                    to={settings.heroButtonLink}
-                    className="px-8 py-4 rounded-full font-bold text-lg hover:opacity-90 hover:shadow-lg hover:-translate-y-0.5 transition-all w-full sm:w-auto"
-                    style={{ 
-                      backgroundColor: settings.heroButtonBgColor || '#111111', 
-                      color: settings.heroButtonTextColor || '#ffffff' 
-                    }}
-                  >
-                    {settings.heroButtonText}
-                  </Link>
+                {/* Media Layer */}
+                <div className="absolute inset-0 w-full h-full bg-black">
+                  {media.type === 'image' && (
+                    <CloudinaryImage src={media.mediaUrl} alt="Hero" className="w-full h-full object-cover" loading={isActive ? "eager" : "lazy"} width={1920} />
+                  )}
+                  {media.type === 'video_upload' && (
+                    <video 
+                      src={media.mediaUrl} 
+                      poster={media.thumbnail || undefined}
+                      autoPlay={media.autoplay && isActive}
+                      loop={media.loop}
+                      muted={media.muted}
+                      controls={media.controls}
+                      playsInline
+                      className="w-full h-full object-cover blur-xl transition-all duration-1000 data-[loaded=true]:blur-none"
+                      onLoadedData={(e) => e.currentTarget.setAttribute('data-loaded', 'true')}
+                    />
+                  )}
+                  {media.type === 'video_url' && (
+                    isIframe ? (
+                      <div className="w-full h-full pointer-events-none scale-150 md:scale-105">
+                        <iframe 
+                          src={isActive ? embedUrl : ''} 
+                          className="w-full h-full object-cover" 
+                          allow="autoplay; fullscreen" 
+                          frameBorder="0"
+                        />
+                      </div>
+                    ) : (
+                      <video 
+                        src={media.mediaUrl} 
+                        poster={media.thumbnail || undefined}
+                        autoPlay={media.autoplay && isActive}
+                        loop={media.loop}
+                        muted={media.muted}
+                        controls={media.controls}
+                        playsInline
+                        className="w-full h-full object-cover blur-xl transition-all duration-1000 data-[loaded=true]:blur-none"
+                        onLoadedData={(e) => e.currentTarget.setAttribute('data-loaded', 'true')}
+                      />
+                    )
+                  )}
+                </div>
+
+                {/* Luxury Overlay */}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10 z-10"></div>
+
+                {/* Content Overlay */}
+                {(media.title || media.subtitle || media.buttonText) && (
+                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-5 max-w-4xl mx-auto h-full pt-10">
+                    <motion.div 
+                      initial={{ opacity: 0, y: 30 }}
+                      animate={isActive ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
+                      transition={{ duration: 1, delay: 0.3 }}
+                      className="backdrop-blur-md bg-white/10 border border-white/20 p-8 md:p-12 rounded-[2.5rem] shadow-2xl"
+                    >
+                      {media.title && (
+                        <h1 className="text-4xl md:text-6xl font-serif font-bold mb-4 text-white drop-shadow-lg leading-tight">
+                          {media.title}
+                        </h1>
+                      )}
+                      {media.subtitle && (
+                        <p className="text-lg md:text-xl mb-8 text-white/90 drop-shadow max-w-2xl mx-auto">
+                          {media.subtitle}
+                        </p>
+                      )}
+                      {media.buttonText && media.buttonLink && (
+                        <Link 
+                          to={media.buttonLink} 
+                          className="inline-block bg-white text-black px-10 py-4 rounded-full font-bold text-lg hover:bg-gray-100 hover:scale-105 transition-all shadow-xl"
+                        >
+                          {media.buttonText}
+                        </Link>
+                      )}
+                    </motion.div>
+                  </div>
                 )}
-                {/* Secondary Button logic kept from original if combo features still needed alongside main CMS button */}
-                <Link
-                  to="/combos"
-                  className="bg-white/60 backdrop-blur-sm border-2 border-[#111111]/10 text-[#111111] px-8 py-4 rounded-full font-bold text-lg hover:border-[#111111]/30 hover:bg-white/80 hover:shadow-lg hover:-translate-y-0.5 transition-all w-full sm:w-auto"
-                >
-                  Explore Combos
-                </Link>
+              </div>
+            );
+          })
+        ) : (
+          /* Fallback Original Hero Render */
+          <>
+            {(heroImages.length > 0 ? heroImages : [
+              'https://images.unsplash.com/photo-1615486171448-4df171221b06?q=80&w=1600&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1596462502278-27bfdc403348?q=80&w=1600&auto=format&fit=crop',
+              'https://images.unsplash.com/photo-1594035910387-fea47794261f?q=80&w=1600&auto=format&fit=crop'
+            ]).map((img, idx) => (
+              <div 
+                key={idx}
+                className="absolute inset-0 w-full h-full z-0"
+                style={{ 
+                  opacity: idx === heroBgIndex ? 1 : 0,
+                  transition: 'opacity 1.5s ease-in-out'
+                }}
+              >
+                <CloudinaryImage
+                  src={img}
+                  alt="Luxury Perfume"
+                  className="w-full h-full object-cover"
+                  loading={idx === 0 ? "eager" : "lazy"}
+                  width={1920}
+                />
+              </div>
+            ))}
+            {(settings?.heroHeading || settings?.heroSubheading || settings?.heroButtonText) && (
+              <motion.div 
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  hidden: { opacity: 0 },
+                  visible: {
+                    opacity: 1,
+                    transition: { staggerChildren: 0.2 }
+                  }
+                }}
+                className="relative z-20 text-center px-5 md:px-12 py-8 md:py-10 max-w-4xl mx-auto backdrop-blur-md bg-white/40 border border-white/30 shadow-[0_8px_32px_rgba(0,0,0,0.1)] rounded-[2rem] md:rounded-[2.5rem] drop-shadow-xl"
+              >
+                {settings?.heroHeading && (
+                  <motion.h1
+                    variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                    transition={{ duration: 0.8 }}
+                    className="text-3xl md:text-6xl font-serif font-bold mb-3 md:mb-4 tracking-tight leading-tight"
+                    style={{ color: settings.heroHeadingColor || '#111111' }}
+                  >
+                    {settings.heroHeading}
+                  </motion.h1>
+                )}
+                {settings?.heroSubheading && (
+                  <motion.p
+                    variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                    transition={{ duration: 0.8 }}
+                    className="text-base md:text-xl mb-8 font-medium max-w-2xl mx-auto"
+                    style={{ color: settings.heroSubheadingColor || '#333333' }}
+                  >
+                    {settings.heroSubheading}
+                  </motion.p>
+                )}
+                {(settings?.heroButtonText || settings?.heroButtonLink) && (
+                  <motion.div
+                    variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+                    transition={{ duration: 0.8 }}
+                    className="flex flex-col sm:flex-row items-center justify-center gap-4"
+                  >
+                    {settings?.heroButtonText && settings?.heroButtonLink && (
+                      <Link
+                        to={settings.heroButtonLink}
+                        className="px-8 py-4 rounded-full font-bold text-lg hover:opacity-90 hover:shadow-lg hover:-translate-y-0.5 transition-all w-full sm:w-auto"
+                        style={{ 
+                          backgroundColor: settings.heroButtonBgColor || '#111111', 
+                          color: settings.heroButtonTextColor || '#ffffff' 
+                        }}
+                      >
+                        {settings.heroButtonText}
+                      </Link>
+                    )}
+                    <Link
+                      to="/combos"
+                      className="bg-white/60 backdrop-blur-sm border-2 border-[#111111]/10 text-[#111111] px-8 py-4 rounded-full font-bold text-lg hover:border-[#111111]/30 hover:bg-white/80 hover:shadow-lg hover:-translate-y-0.5 transition-all w-full sm:w-auto"
+                    >
+                      Explore Combos
+                    </Link>
+                  </motion.div>
+                )}
               </motion.div>
             )}
-          </motion.div>
+          </>
         )}
       </section>
 
@@ -414,11 +552,11 @@ export default function Home() {
                 return (
                   <div key={`bs-${i}`} className="rounded-2xl overflow-hidden bg-white group border border-[#eeeeee]" style={style} onClick={() => { if (rel !== 0) setBestSellerIndex(i); }}>
                     <Link to={`/product/${product.slug || product._id || product.id}`} className="block w-full h-full relative" onClick={(e) => rel !== 0 && e.preventDefault()}>
-                      <img src={cardBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-10 md:opacity-[0.12] transition-opacity duration-500 group-hover:opacity-20" loading="lazy" />
+                      <CloudinaryImage src={cardBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-10 md:opacity-[0.12] transition-opacity duration-500 group-hover:opacity-20" loading="lazy" width={600} />
                       <div className="absolute inset-0 flex flex-col p-6 z-10 bg-gradient-to-t from-white/95 via-white/50 to-white/95">
                         <h3 className="text-base md:text-2xl font-serif font-bold text-[#111] text-center mb-auto mt-2 tracking-wide">{product._customTitle || product.name}</h3>
                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-36 h-36 sm:w-52 sm:h-52 md:w-64 md:h-64">
-                          <img src={product._customImage || displayImage} alt={product.name} className="w-full h-full object-contain group-hover:scale-105 group-hover:-translate-y-1 transition-all duration-500" onError={(e) => { (e.target as HTMLImageElement).src = '/apple-touch-icon.png' }} />
+                          <CloudinaryImage src={product._customImage || displayImage} alt={product.name} className="w-full h-full object-contain group-hover:scale-105 group-hover:-translate-y-1 transition-all duration-500" width={400} />
                         </div>
                         <div className="mt-auto text-center z-20">
                           <span className={`inline-block bg-[#C9A96E] text-white px-5 py-2.5 md:px-8 md:py-3.5 rounded-lg text-sm md:text-base font-bold shadow-md hover:bg-[#b0915a] hover:scale-105 transition-all duration-300 ${rel !== 0 ? 'pointer-events-none' : ''}`}>Buy Now</span>
@@ -441,6 +579,8 @@ export default function Home() {
         </section>
         );
       })()}
+
+      <Recommendations title="Recommended For You" limit={4} />
 
       {/* Signature Collection */}
       <section className="relative z-30 bg-[#fbf9ff] py-16 md:py-24 border-t border-[#eeeeee]">
@@ -583,13 +723,14 @@ export default function Home() {
             </div>
             <div className="md:w-1/2 relative flex items-center justify-center">
                <div className="absolute inset-0 bg-[#f8f5ff] blur-3xl rounded-full -z-10"></div>
-              <img 
-                src={comboImage || 'https://images.unsplash.com/photo-1615486171448-4df171221b06?q=80&w=800&auto=format&fit=crop'} 
-                alt="Rivore Combo Collection" 
-                className="rounded-3xl object-cover w-full max-w-md aspect-square shadow-lg border border-[#eeeeee]" 
-                referrerPolicy="no-referrer" 
-                onError={(e) => { (e.target as HTMLImageElement).src = '/apple-touch-icon.png' }}
-              />
+              <div className="w-full max-w-md aspect-square rounded-3xl overflow-hidden shadow-lg border border-[#eeeeee]">
+                <CloudinaryImage 
+                  src={comboImage || 'https://images.unsplash.com/photo-1615486171448-4df171221b06?q=80&w=800&auto=format&fit=crop'} 
+                  alt="Rivore Combo Collection" 
+                  className="w-full h-full object-cover" 
+                  width={600}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -653,12 +794,12 @@ export default function Home() {
                       {/* Overlapping Avatar */}
                       <div className="absolute -top-[30px] left-1/2 -translate-x-1/2 z-10 w-[60px] h-[60px]">
                         {testimonial.image ? (
-                          <img 
+                          <CloudinaryImage 
                             src={testimonial.image} 
                             alt={testimonial.name} 
                             loading="lazy" 
-                            onError={(e) => { (e.target as HTMLImageElement).src = '/apple-touch-icon.png' }} 
                             className="w-full h-full rounded-full object-cover border-[3px] border-white bg-white" 
+                            width={100}
                           />
                         ) : (
                           <div className="w-full h-full rounded-full bg-gradient-to-br from-[color:var(--color-brand-wine)] to-[#4A1D54] text-white flex items-center justify-center text-2xl font-bold font-serif border-[3px] border-white">
@@ -750,14 +891,11 @@ export default function Home() {
               <div className="relative w-full max-w-[500px] h-[350px] md:h-[450px] flex items-center justify-center group" style={{ perspective: '1000px' }}>
                 <div className="absolute inset-0 bg-[#f8f5ff] blur-3xl rounded-full opacity-60 -z-10 group-hover:scale-110 group-hover:opacity-80 transition-all duration-700"></div>
                 
-                <img 
+                <CloudinaryImage 
                   src={storeLocation.image || '/store-transparent.png'} 
                   alt="Rivore Store" 
                   className="object-contain w-full h-full transform transition-all duration-700 ease-out group-hover:-translate-y-6 group-hover:scale-105"
-                  onError={(e) => { 
-                    (e.target as HTMLImageElement).src = 'https://res.cloudinary.com/dum9idrbx/image/upload/v1700000000/placeholder-store.png';
-                    (e.target as HTMLImageElement).style.opacity = '0.05';
-                  }}
+                  width={600}
                 />
                 
                 {/* Fallback prompt text if image fails to load */}

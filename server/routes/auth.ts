@@ -3,9 +3,14 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import mongoose from 'mongoose';
 import User from '../models/User';
+import { verifyTurnstile } from '../middleware/turnstile';
+import { checkFailedLogins, recordFailedLogin, clearFailedLogins } from '../middleware/failedLogin';
 
 import { authenticateAdmin } from '../middleware/auth';
 import sgMail from '@sendgrid/mail';
+import AdminActivity from '../models/AdminActivity';
+import UAParser from 'ua-parser-js';
+import geoip from 'geoip-lite';
 
 const router = express.Router();
 
@@ -29,7 +34,7 @@ router.post('/setup', async (req, res) => {
 });
 
 // Admin Login
-router.post('/login', async (req, res) => {
+router.post('/login', verifyTurnstile, checkFailedLogins, async (req, res) => {
   try {
     const { email, password } = req.body;
     
@@ -50,21 +55,47 @@ router.post('/login', async (req, res) => {
     if (!user) {
       // Fallback to demo credentials if no user found in DB
       if (email === 'admin@rivore.com' && password === 'admin123') {
+        await clearFailedLogins(req, email);
         const token = jwt.sign({ id: 'mock-admin-id', role: 'admin' }, process.env.JWT_SECRET || 'rivore_secret_key', {
           expiresIn: '1d',
         });
         return res.json({ token, user: { id: 'mock-admin-id', email: 'admin@rivore.com', role: 'admin' } });
       }
+      await recordFailedLogin(req, email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     if (!(await bcrypt.compare(password, user.password!))) {
+      await recordFailedLogin(req, email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    await clearFailedLogins(req, email);
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'rivore_secret_key', {
       expiresIn: '1d',
     });
+
+    if (user.role === 'admin') {
+      const ip = req.ip || req.connection.remoteAddress || '';
+      const userAgent = req.headers['user-agent'] || '';
+      const parser = new UAParser(userAgent);
+      const geo = geoip.lookup(ip);
+
+      await AdminActivity.create({
+        adminId: user._id,
+        adminName: user.email,
+        action: 'Login',
+        target: 'Admin Dashboard',
+        ipAddress: ip,
+        country: geo ? geo.country : 'Unknown',
+        city: geo ? geo.city : 'Unknown',
+        isp: 'Unknown',
+        browser: parser.getBrowser().name || 'Unknown',
+        os: parser.getOS().name || 'Unknown',
+        deviceType: parser.getDevice().type || 'Desktop',
+        userAgent
+      }).catch(console.error);
+    }
 
     res.json({ token, user: { id: user._id, email: user.email, role: user.role } });
   } catch (error) {

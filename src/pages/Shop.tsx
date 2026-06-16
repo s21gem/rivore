@@ -2,6 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import Loader from '../components/Loader';
 import { Search, Filter, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { optimizeCloudinaryUrl } from '../utils/imageOptimizer';
+import { useSettingsStore } from '../store/settingsStore';
+import { CloudinaryImage } from '../components/ui/CloudinaryImage';
+
+interface Product {
+  _id: string;
+  name: string;
+  price: number;
+  images: string[];
+  category: string;
+}
 
 export default function Shop() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -268,9 +279,9 @@ export default function Shop() {
                       const basePrice = product.sizes ? (product.sizes['50ml'] || Object.values(product.sizes)[0]) : product.price;
                       const discountPct = product.discountAmount || 0;
                       const displayPrice = discountPct > 0 ? Math.round(basePrice * (1 - discountPct / 100)) : basePrice;
-                      const displayImage = product.image || product.images?.[0] || 'https://via.placeholder.com/400x500';
+                      const displayImage = optimizeCloudinaryUrl(product.image || product.images?.[0] || 'https://via.placeholder.com/400x500', 600);
                       const hasSecondaryImage = product.images && product.images.length > 1;
-                      const secondaryImage = hasSecondaryImage ? product.images[1] : null;
+                      const secondaryImage = hasSecondaryImage ? optimizeCloudinaryUrl(product.images[1], 600) : null;
                       
                       return (
                       <Link to={`/product/${product.slug || product._id || product.id}`} key={product._id || product.id} className="group block">
@@ -290,22 +301,21 @@ export default function Shop() {
 
                             {/* Product Image - Floating */}
                             <div className="absolute inset-0 flex items-center justify-center p-8">
-                              <img
-                                src={displayImage}
+                              <CloudinaryImage
+                                src={product.image || product.images?.[0] || 'https://via.placeholder.com/400x500'}
                                 alt={product.name}
                                 className={`w-full h-full object-contain absolute z-10 transform -translate-y-[6px] scale-[1.02] transition-all duration-500 ease-out ${hasSecondaryImage ? 'group-hover:opacity-0' : 'group-hover:-translate-y-3 group-hover:scale-[1.06] group-hover:rotate-[0.5deg]'}`}
                                 style={{ padding: '2rem' }}
-                                referrerPolicy="no-referrer"
+                                width={600}
                                 loading="lazy"
-                                onError={(e) => { (e.target as HTMLImageElement).src = '/apple-touch-icon.png' }}
                               />
                               {hasSecondaryImage && (
-                                <img
-                                  src={secondaryImage}
+                                <CloudinaryImage
+                                  src={product.images[1]}
                                   alt={`${product.name} Hover`}
                                   className="w-full h-full object-contain absolute z-20 opacity-0 group-hover:opacity-100 transform -translate-y-[6px] scale-[1.02] group-hover:-translate-y-3 group-hover:scale-[1.06] transition-all duration-500 ease-out"
                                   style={{ padding: '2rem' }}
-                                  referrerPolicy="no-referrer"
+                                  width={600}
                                   loading="lazy"
                                 />
                               )}

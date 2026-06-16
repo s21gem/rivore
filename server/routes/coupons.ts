@@ -1,6 +1,7 @@
 import express from 'express';
 import { authenticateAdmin } from '../middleware/auth.js';
 import Coupon from '../models/Coupon.js';
+import { logAdminActivity } from '../middleware/auditLogger';
 
 const router = express.Router();
 
@@ -17,7 +18,7 @@ router.get('/', authenticateAdmin, async (req, res) => {
 });
 
 // Create a new coupon (Admin only)
-router.post('/', authenticateAdmin, async (req, res) => {
+router.post('/', authenticateAdmin, logAdminActivity('Coupon Created', req => `Code: ${req.body?.code || 'Unknown'}`), async (req, res) => {
   try {
     const { code, discountType, discountAmount, isActive } = req.body;
     
@@ -42,7 +43,7 @@ router.post('/', authenticateAdmin, async (req, res) => {
 });
 
 // Update a coupon (Admin only)
-router.put('/:id', authenticateAdmin, async (req, res) => {
+router.put('/:id', authenticateAdmin, logAdminActivity('Coupon Updated', req => `Coupon ID: ${req.params.id}`), async (req, res) => {
   try {
     const updatedCoupon = await Coupon.findByIdAndUpdate(
       req.params.id,
@@ -57,7 +58,7 @@ router.put('/:id', authenticateAdmin, async (req, res) => {
 });
 
 // Delete a coupon (Admin only)
-router.delete('/:id', authenticateAdmin, async (req, res) => {
+router.delete('/:id', authenticateAdmin, logAdminActivity('Coupon Deleted', req => `Coupon ID: ${req.params.id}`), async (req, res) => {
   try {
     const deleted = await Coupon.findByIdAndDelete(req.params.id);
     if (!deleted) return res.status(404).json({ message: 'Coupon not found' });
@@ -70,13 +71,25 @@ router.delete('/:id', authenticateAdmin, async (req, res) => {
 // Public: Validate a coupon
 router.post('/validate', async (req, res) => {
   try {
-    const { code } = req.body;
+    const { code, customerId } = req.body;
     if (!code) return res.status(400).json({ message: 'Coupon code is required' });
 
     const coupon = await Coupon.findOne({ code: code.toUpperCase(), isActive: true });
     
     if (!coupon) {
       return res.status(404).json({ message: 'Invalid or expired coupon' });
+    }
+
+    // Check expiration if expiresAt is set
+    if (coupon.expiresAt && new Date() > coupon.expiresAt) {
+      return res.status(400).json({ message: 'This coupon has expired' });
+    }
+
+    // Check customerId if coupon is customer specific
+    if (coupon.customerId) {
+      if (!customerId || coupon.customerId.toString() !== customerId.toString()) {
+        return res.status(400).json({ message: 'This coupon is not valid for this account' });
+      }
     }
 
     res.json({

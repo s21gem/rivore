@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { ShoppingBag, Home, Search, User, Gift, X } from 'lucide-react';
+import { Helmet } from 'react-helmet-async';
 import { useCartStore } from '../store/cartStore';
 import { toast } from 'sonner';
 import CartSidebar from './CartSidebar';
@@ -61,6 +62,15 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-background text-foreground">
+      <Helmet>
+        <title>Rivor\u00E9 | Luxury Fragrances</title>
+        <meta name="description" content="Premium perfumes crafted for elegance and luxury. Discover your signature scent." />
+        <meta property="og:title" content="Rivor\u00E9 | Luxury Fragrances" />
+        <meta property="og:description" content="Premium perfumes crafted for elegance and luxury." />
+        <meta property="og:type" content="website" />
+        <meta name="twitter:card" content="summary_large_image" />
+      </Helmet>
+
       {/* Top Notification Banner (Non-Sticky, CMS-driven) */}
       {location.pathname === '/' && bannerEnabled && bannerMessages.length > 0 && (
         <div className="w-full bg-gradient-to-r from-white via-[#f0e6ff] to-white border-b border-[#ebdfff] overflow-hidden flex items-center h-8 md:h-10 relative z-[60]">

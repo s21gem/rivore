@@ -65,13 +65,79 @@ export interface ISettings extends Document {
   // CMS: Payment Gateways
   paymentBkash: { merchantId: string; apiKey: string; apiSecret: string; enabled: boolean };
   paymentSslCommerz: { storeId: string; storePassword: string; enabled: boolean; isLive: boolean };
-  paymentUddoktaPay: { apiKey: string; enabled: boolean; isLive: boolean };
+  paymentUddoktaPay: { 
+    enabled: boolean; 
+    apiKey: string; 
+    baseUrl: string;
+    successUrl: string;
+    cancelUrl: string;
+    webhookUrl: string;
+    autoVerifyPayments: boolean;
+    autoGenerateInvoice: boolean;
+    autoGeneratePosInvoice: boolean;
+    autoAwardLoyaltyPoints: boolean;
+    autoUpdateMembershipTier: boolean;
+    autoSendToSteadfast: boolean;
+    enableWebhookProcessing: boolean;
+    enableActivityLogging: boolean;
+    enableSecurityLogging: boolean;
+    enableRefundModule: boolean;
+  };
   deliverySteadfast: { 
     enabled: boolean; 
     apiKey: string; 
     secretKey: string; 
     baseUrl: string; 
     autoSend: boolean; 
+  };
+
+  // CMS: Reward System
+  rewardSettings: {
+    spendForOnePoint: number;
+    discountPerPoint: number;
+    enabled: boolean;
+  };
+
+  // CMS: Membership Tiers
+  tierSettings: {
+    enabled: boolean;
+    silverSpend: number;
+    silverDiscount: number;
+    goldSpend: number;
+    goldDiscount: number;
+    platinumSpend: number;
+    platinumDiscount: number;
+  };
+
+  // CMS: Birthday Rewards
+  birthdayRewardSettings: {
+    enabled: boolean;
+    discountType: 'percentage' | 'flat';
+    discountAmount: number;
+  };
+
+  // CMS: Referral Rewards
+  referralRewardSettings: {
+    enabled: boolean;
+    rewardPoints: number;
+  };
+
+  // CMS: Security Settings
+  securitySettings: {
+    turnstileEnabled: boolean;
+    turnstileSiteKey: string;
+    turnstileSecretKey: string;
+  };
+
+  // CMS: Backup Settings
+  backupSettings: {
+    schedule: 'daily' | 'weekly' | 'monthly' | 'none';
+    lastBackup: Date | null;
+  };
+
+  // CMS: Admin Session Settings
+  adminSessionSettings: {
+    timeoutMinutes: number;
   };
 }
 
@@ -171,10 +237,23 @@ const settingsSchema = new mongoose.Schema({
     enabled: { type: Boolean, default: false },
     isLive: { type: Boolean, default: false }
   },
-  paymentUddoktaPay: {
+  paymentUddoktaPay: { 
+    enabled: { type: Boolean, default: false }, 
     apiKey: { type: String, default: '' },
-    enabled: { type: Boolean, default: false },
-    isLive: { type: Boolean, default: false }
+    baseUrl: { type: String, default: 'https://rivore.paymently.io/api' },
+    successUrl: { type: String, default: 'https://www.rivorelifestyle.com/payment/uddoktapay/success' },
+    cancelUrl: { type: String, default: 'https://www.rivorelifestyle.com/payment/uddoktapay/cancel' },
+    webhookUrl: { type: String, default: 'https://www.rivorelifestyle.com/api/payment/uddoktapay/webhook' },
+    autoVerifyPayments: { type: Boolean, default: true },
+    autoGenerateInvoice: { type: Boolean, default: true },
+    autoGeneratePosInvoice: { type: Boolean, default: true },
+    autoAwardLoyaltyPoints: { type: Boolean, default: true },
+    autoUpdateMembershipTier: { type: Boolean, default: true },
+    autoSendToSteadfast: { type: Boolean, default: false },
+    enableWebhookProcessing: { type: Boolean, default: true },
+    enableActivityLogging: { type: Boolean, default: true },
+    enableSecurityLogging: { type: Boolean, default: true },
+    enableRefundModule: { type: Boolean, default: false }
   },
   deliverySteadfast: {
     enabled: { type: Boolean, default: false },
@@ -182,6 +261,55 @@ const settingsSchema = new mongoose.Schema({
     secretKey: { type: String, default: '' },
     baseUrl: { type: String, default: 'https://portal.packzy.com/api/v1' },
     autoSend: { type: Boolean, default: false }
+  },
+
+  // CMS: Reward System
+  rewardSettings: {
+    spendForOnePoint: { type: Number, default: 100 },
+    discountPerPoint: { type: Number, default: 1 },
+    enabled: { type: Boolean, default: true }
+  },
+
+  // CMS: Membership Tiers
+  tierSettings: {
+    enabled: { type: Boolean, default: true },
+    silverSpend: { type: Number, default: 5000 },
+    silverDiscount: { type: Number, default: 5 },
+    goldSpend: { type: Number, default: 10000 },
+    goldDiscount: { type: Number, default: 10 },
+    platinumSpend: { type: Number, default: 15000 },
+    platinumDiscount: { type: Number, default: 20 },
+  },
+
+  // CMS: Birthday Rewards
+  birthdayRewardSettings: {
+    enabled: { type: Boolean, default: true },
+    discountType: { type: String, enum: ['percentage', 'flat'], default: 'percentage' },
+    discountAmount: { type: Number, default: 10 },
+  },
+
+  // CMS: Referral Rewards
+  referralRewardSettings: {
+    enabled: { type: Boolean, default: true },
+    rewardPoints: { type: Number, default: 100 },
+  },
+
+  // CMS: Security Settings
+  securitySettings: {
+    turnstileEnabled: { type: Boolean, default: false },
+    turnstileSiteKey: { type: String, default: '' },
+    turnstileSecretKey: { type: String, default: '' },
+  },
+
+  // CMS: Backup Settings
+  backupSettings: {
+    schedule: { type: String, enum: ['daily', 'weekly', 'monthly', 'none'], default: 'none' },
+    lastBackup: { type: Date, default: null },
+  },
+
+  // CMS: Admin Session Settings
+  adminSessionSettings: {
+    timeoutMinutes: { type: Number, default: 30 },
   },
 }, { timestamps: true });
 

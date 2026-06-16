@@ -8,12 +8,12 @@ const router = express.Router();
 // Use memory storage for multer
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 200 * 1024 * 1024 }, // 200MB limit
   fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
+    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed'));
+      cb(new Error('Only image and video files are allowed'));
     }
   },
 });
@@ -24,7 +24,7 @@ function handleMulterError(err: any, _req: express.Request, res: express.Respons
     console.error('[Upload] Multer Error:', err.message || err);
     if (err instanceof multer.MulterError) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ message: 'File too large. Maximum size is 10MB.' });
+        return res.status(400).json({ message: 'File too large. Maximum size is 200MB.' });
       }
       return res.status(400).json({ message: err.message });
     }
@@ -33,12 +33,12 @@ function handleMulterError(err: any, _req: express.Request, res: express.Respons
   next();
 }
 
-// Single image upload
-router.post('/', authenticateAdmin, upload.single('image'), handleMulterError, async (req: any, res) => {
+// Single file upload
+router.post('/', authenticateAdmin, upload.single('file'), handleMulterError, async (req: any, res) => {
   try {
     if (!req.file) {
       console.error('[Upload] No file in request. Body:', req.body);
-      return res.status(400).json({ message: 'No file uploaded. Make sure the field name is "image".' });
+      return res.status(400).json({ message: 'No file uploaded. Make sure the field name is "file".' });
     }
 
     console.log(`[Upload] Processing: ${req.file.originalname}`);

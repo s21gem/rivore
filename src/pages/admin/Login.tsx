@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
+import { TurnstileWidget } from '../../components/TurnstileWidget';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const setAuth = useAuthStore((state) => state.setAuth);
   const navigate = useNavigate();
 
@@ -21,7 +23,7 @@ export default function Login() {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, turnstileToken }),
       });
 
       const data = await response.json();
@@ -77,6 +79,12 @@ export default function Login() {
               placeholder="••••••••"
             />
           </div>
+
+          <TurnstileWidget 
+            onVerify={(token) => setTurnstileToken(token)}
+            onError={() => setError('Security verification failed.')}
+          />
+
           <button
             type="submit"
             disabled={loading}

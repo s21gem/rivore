@@ -1,11 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { customerApi } from '../../lib/customerApi';
-import { Loader2, Package, Calendar, CreditCard, Truck } from 'lucide-react';
+import { Loader2, Package, Calendar, CreditCard, Truck, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate, Link } from 'react-router-dom';
+import { useCartStore } from '../../store/cartStore';
 
 export default function Orders() {
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [reordering, setReordering] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const addItem = useCartStore((state) => state.addItem);
 
   useEffect(() => {
     fetchOrders();
@@ -19,6 +24,71 @@ export default function Orders() {
       toast.error('Failed to load orders');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleReorder = async (order: any) => {
+    setReordering(order._id);
+    try {
+      let allAdded = true;
+      for (const item of order.items) {
+        if (item.type === 'combo') {
+          const res = await fetch(`/api/combos/${item.combo}`);
+          if (res.ok) {
+            const comboData = await res.json();
+            if (comboData && comboData.isActive !== false) {
+              addItem({
+                id: `combo-${comboData._id}`,
+                comboId: comboData._id,
+                name: comboData.name,
+                price: comboData.price,
+                quantity: item.quantity,
+                image: comboData.image,
+                type: 'combo'
+              });
+            } else {
+              allAdded = false;
+              toast.warning(`Combo "${item.name}" is no longer available.`);
+            }
+          } else {
+            allAdded = false;
+            toast.warning(`Combo "${item.name}" is no longer available.`);
+          }
+        } else {
+          const res = await fetch(`/api/products/${item.product}`);
+          if (res.ok) {
+            const productData = await res.json();
+            if (productData && productData.stock > 0) {
+              addItem({
+                id: `${productData._id}-${item.size || ''}`,
+                productId: productData._id,
+                size: item.size,
+                name: `${productData.name}${item.size ? ` (${item.size})` : ''}`,
+                price: productData.sizes && item.size ? (productData.sizes[item.size] || productData.price) : productData.price,
+                quantity: Math.min(item.quantity, productData.stock),
+                image: productData.image || productData.images?.[0] || '',
+                type: 'product',
+                stock: productData.stock
+              });
+            } else {
+              allAdded = false;
+              toast.warning(`Product "${item.name}" is currently out of stock.`);
+            }
+          } else {
+            allAdded = false;
+            toast.warning(`Product "${item.name}" is no longer available.`);
+          }
+        }
+      }
+      
+      navigate('/checkout');
+      if (allAdded) {
+        toast.success('Items added to cart');
+      }
+    } catch (error) {
+      toast.error('Failed to reorder items');
+    } finally {
+      setReordering(null);
     }
   };
 
@@ -58,13 +128,29 @@ export default function Orders() {
                   <p className="font-bold text-primary">৳{order.totalAmount}</p>
                 </div>
                 <div>
-                  <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
-                    order.status === 'Delivered' ? 'bg-green-100 text-green-700' :
-                    order.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
-                    'bg-blue-100 text-blue-700'
-                  }`}>
-                    {order.status}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                      order.status === 'Delivered' ? 'bg-green-100 text-green-700' :
+                      order.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
+                      'bg-blue-100 text-blue-700'
+                    }`}>
+                      {order.status}
+                    </span>
+                    <Link
+                      to={`/account/orders/${order._id}`}
+                      className="bg-white border-2 border-[#111111] text-[#111111] px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-[#111111] hover:text-white transition-colors shadow-sm"
+                    >
+                      View Details
+                    </Link>
+                    <button
+                      onClick={() => handleReorder(order)}
+                      disabled={reordering === order._id}
+                      className="bg-[#111111] text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-[#333333] transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                    >
+                      {reordering === order._id ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                      Buy Again
+                    </button>
+                  </div>
                 </div>
               </div>
               

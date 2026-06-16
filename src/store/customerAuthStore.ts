@@ -9,6 +9,9 @@ export interface CustomerUser {
   dob?: Date;
   gender?: string;
   role: string;
+  preferredPaymentMethod?: string;
+  tier?: string;
+  lifetimeSpend?: number;
 }
 
 interface CustomerAuthState {

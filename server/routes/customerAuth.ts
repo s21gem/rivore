@@ -4,7 +4,10 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import Reward from '../models/Reward';
 import Referral from '../models/Referral';
+import Coupon from '../models/Coupon';
 import sgMail from '@sendgrid/mail';
+import { verifyTurnstile } from '../middleware/turnstile';
+import { checkFailedLogins, recordFailedLogin, clearFailedLogins } from '../middleware/failedLogin';
 
 const router = express.Router();
 
@@ -44,9 +47,9 @@ const generateAndSendCustomerOtp = async (targetEmail: string): Promise<string> 
 };
 
 // Customer Registration
-router.post('/register', async (req, res) => {
+router.post('/register', verifyTurnstile, async (req, res) => {
   try {
-    const { email, password, fullName } = req.body;
+    const { email, password, fullName, referralCode } = req.body;
     
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
@@ -74,13 +77,40 @@ router.post('/register', async (req, res) => {
     const refCode = email.split('@')[0].toUpperCase().substring(0, 5) + Math.floor(100 + Math.random() * 900);
     await new Referral({ customerId: user._id, referralCode: refCode }).save();
 
+    // Check if user was referred
+    if (referralCode) {
+      const referrerReferral = await Referral.findOne({ referralCode: referralCode.toUpperCase() });
+      if (referrerReferral) {
+        referrerReferral.referredUsers.push({
+          referredUserId: user._id as any,
+          email: user.email,
+          dateJoined: new Date(),
+          rewardIssued: false
+        });
+        await referrerReferral.save();
+
+        // Issue 10% Welcome Coupon to the new customer immediately
+        const welcomeCode = `WELCOME-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        const newCoupon = new Coupon({
+          code: welcomeCode,
+          discountType: 'percentage',
+          discountAmount: 10,
+          isActive: true,
+          customerId: user._id,
+          description: '10% Welcome Gift (Referred)',
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+        });
+        await newCoupon.save();
+      }
+    }
+
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'rivore_secret_key', {
       expiresIn: '7d',
     });
 
     res.status(201).json({ 
       token, 
-      user: { id: user._id, email: user.email, fullName: user.fullName, role: user.role } 
+      user: { id: user._id, email: user.email, fullName: user.fullName, role: user.role, tier: user.tier, lifetimeSpend: user.lifetimeSpend } 
     });
   } catch (error: any) {
     console.error('Registration error:', error);
@@ -89,25 +119,28 @@ router.post('/register', async (req, res) => {
 });
 
 // Customer Login
-router.post('/login', async (req, res) => {
+router.post('/login', verifyTurnstile, checkFailedLogins, async (req, res) => {
   try {
     const { email, password } = req.body;
     
     const user = await User.findOne({ email });
 
     if (!user || user.role !== 'customer') {
+      await recordFailedLogin(req, email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     if (!(await bcrypt.compare(password, user.password!))) {
+      await recordFailedLogin(req, email);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
+    await clearFailedLogins(req, email);
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'rivore_secret_key', {
       expiresIn: '7d',
     });
 
-    res.json({ token, user: { id: user._id, email: user.email, fullName: user.fullName, role: user.role } });
+    res.json({ token, user: { id: user._id, email: user.email, fullName: user.fullName, role: user.role, tier: user.tier, lifetimeSpend: user.lifetimeSpend } });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ message: 'Server error' });
@@ -115,7 +148,7 @@ router.post('/login', async (req, res) => {
 });
 
 // Send OTP for password reset
-router.post('/reset-password/request', async (req, res) => {
+router.post('/reset-password/request', verifyTurnstile, async (req, res) => {
   try {
     const { email } = req.body;
     const user = await User.findOne({ email, role: 'customer' });
@@ -138,7 +171,7 @@ router.post('/reset-password/request', async (req, res) => {
 });
 
 // Verify OTP and set new password
-router.post('/reset-password/verify', async (req, res) => {
+router.post('/reset-password/verify', verifyTurnstile, async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
     
