@@ -342,7 +342,9 @@ export default function Layout() {
         </div>
         <div className="container mx-auto px-6 mt-16 pt-8 border-t border-white/5 flex flex-col items-center md:flex-row md:justify-between text-[10px] text-gray-500 font-light tracking-[0.1em] uppercase text-center md:text-left">
           <p>&copy; {new Date().getFullYear()} RIVORÉ. ALL RIGHTS RESERVED.</p>
-          <p className="mt-4 md:mt-0">CRAFTED WITH ELEGANCE</p>
+          <p className="mt-4 md:mt-0 flex items-center gap-1">
+            CRAFTED WITH ELEGANCE by <a href="https://www.linkedin.com/in/musaabdullah/" target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors font-semibold">MUSA ABDULLAH</a>
+          </p>
         </div>
       </footer>
 
