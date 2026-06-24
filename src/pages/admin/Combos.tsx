@@ -1,6 +1,40 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { Plus, Edit, Trash2, Upload, X, Check, Eye } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { toast } from 'sonner';
+
+const SortableComboRow = ({ combo, handleOpenModal, handleDelete }: any) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: combo._id });
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : 1, position: isDragging ? 'relative' as any : 'static' as any };
+
+  return (
+    <tr ref={setNodeRef} style={style} className={`border-b border-border hover:bg-muted/30 transition-colors ${isDragging ? 'bg-muted/50 opacity-50 shadow-lg' : 'bg-card'}`}>
+      <td className="p-4 w-10 text-center">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-primary inline-block">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line></svg>
+        </div>
+      </td>
+      <td className="p-4 flex items-center gap-4">
+        <img src={combo.image || 'https://via.placeholder.com/50'} alt={combo.name} className="w-12 h-12 rounded-lg object-cover" referrerPolicy="no-referrer" />
+        <span className="font-medium text-foreground">{combo.name}</span>
+      </td>
+      <td className="p-4 text-muted-foreground">{combo.category}</td>
+      <td className="p-4 text-foreground font-medium">৳{combo.price}</td>
+      <td className="p-4 text-muted-foreground">{(combo.products || []).length} items</td>
+      <td className="p-4 text-right">
+        <button onClick={() => handleOpenModal(combo)} className="text-blue-500 hover:text-blue-700 p-2 transition-colors">
+          <Edit className="w-5 h-5" />
+        </button>
+        <button onClick={() => handleDelete(combo._id)} className="text-red-500 hover:text-red-700 p-2 transition-colors">
+          <Trash2 className="w-5 h-5" />
+        </button>
+      </td>
+    </tr>
+  );
+};
 
 export default function Combos() {
   const { token } = useAuthStore();
@@ -14,6 +48,7 @@ export default function Combos() {
     name: '',
     description: '',
     price: '',
+    previousPrice: '',
     category: 'Male',
     image: '',
     selectedProducts: [] as string[],
@@ -23,6 +58,42 @@ export default function Combos() {
   });
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = combos.findIndex((c) => c._id === active.id);
+    const newIndex = combos.findIndex((c) => c._id === over.id);
+
+    const reorderedCombos = arrayMove(combos, oldIndex, newIndex);
+    setCombos(reorderedCombos);
+
+    const items = reorderedCombos.map((c, idx) => ({ _id: c._id, displayOrder: idx }));
+    try {
+      const activeToken = token || localStorage.getItem('token');
+      await fetch('/api/combos/reorder', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${activeToken}`,
+        },
+        body: JSON.stringify({ items }),
+      });
+      toast.success('Combos reordered successfully');
+    } catch (error) {
+      console.error('Reorder error:', error);
+      toast.error('Failed to save combo order');
+      fetchData(); // Revert
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -63,6 +134,7 @@ export default function Combos() {
         name: combo.name,
         description: combo.description,
         price: combo.price.toString(),
+        previousPrice: combo.previousPrice ? combo.previousPrice.toString() : '',
         category: combo.category || 'Male',
         selectedProducts: (combo.products || []).map((p: any) => p._id || p),
         featured: combo.featured || false,
@@ -75,6 +147,7 @@ export default function Combos() {
         name: '',
         description: '',
         price: '',
+        previousPrice: '',
         category: 'Male',
         selectedProducts: [],
         featured: false,
@@ -146,6 +219,7 @@ export default function Combos() {
       name: formData.name,
       description: formData.description,
       price: Number(formData.price),
+      previousPrice: formData.previousPrice ? Number(formData.previousPrice) : undefined,
       category: formData.category,
       image: formData.image,
       products: formData.selectedProducts,
@@ -231,38 +305,32 @@ export default function Combos() {
         {(combos && combos.length > 0) && (
           <>
             <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden hidden md:block">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-muted/50 border-b border-border text-muted-foreground text-sm uppercase tracking-wider">
-                    <th className="p-4 font-semibold">Combo</th>
-                    <th className="p-4 font-semibold">Category</th>
-                    <th className="p-4 font-semibold">Price</th>
-                    <th className="p-4 font-semibold">Products Included</th>
-                    <th className="p-4 font-semibold text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(combos || []).map((combo) => (
-                    <tr key={combo._id} className="border-b border-border hover:bg-muted/30 transition-colors">
-                      <td className="p-4 flex items-center gap-4">
-                        <img src={combo.image || 'https://via.placeholder.com/50'} alt={combo.name} className="w-12 h-12 rounded-lg object-cover" referrerPolicy="no-referrer" />
-                        <span className="font-medium text-foreground">{combo.name}</span>
-                      </td>
-                      <td className="p-4 text-muted-foreground">{combo.category}</td>
-                      <td className="p-4 text-foreground font-medium">৳{combo.price}</td>
-                      <td className="p-4 text-muted-foreground">{(combo.products || []).length} items</td>
-                      <td className="p-4 text-right">
-                        <button onClick={() => handleOpenModal(combo)} className="text-blue-500 hover:text-blue-700 p-2 transition-colors">
-                          <Edit className="w-5 h-5" />
-                        </button>
-                        <button onClick={() => handleDelete(combo._id)} className="text-red-500 hover:text-red-700 p-2 transition-colors">
-                          <Trash2 className="w-5 h-5" />
-                        </button>
-                      </td>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-muted/50 border-b border-border text-muted-foreground text-sm uppercase tracking-wider">
+                      <th className="p-4 font-semibold w-10"></th>
+                      <th className="p-4 font-semibold">Combo</th>
+                      <th className="p-4 font-semibold">Category</th>
+                      <th className="p-4 font-semibold">Price</th>
+                      <th className="p-4 font-semibold">Products Included</th>
+                      <th className="p-4 font-semibold text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <SortableContext items={(combos || []).map(c => c._id)} strategy={verticalListSortingStrategy}>
+                    <tbody>
+                      {(combos || []).map((combo) => (
+                        <SortableComboRow 
+                          key={combo._id} 
+                          combo={combo} 
+                          handleOpenModal={handleOpenModal} 
+                          handleDelete={handleDelete} 
+                        />
+                      ))}
+                    </tbody>
+                  </SortableContext>
+                </table>
+              </DndContext>
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:hidden">
@@ -377,9 +445,15 @@ export default function Combos() {
                           </select>
                         </div>
 
-                        <div>
-                          <label className="block text-sm font-medium text-muted-foreground mb-2">Price (৳)</label>
-                          <input type="number" required value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-primary/50 outline-none" />
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-muted-foreground mb-2">Current Price (৳)</label>
+                            <input type="number" required value={formData.price} onChange={(e) => setFormData({ ...formData, price: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-primary/50 outline-none" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-muted-foreground mb-2">Previous Price (৳)</label>
+                            <input type="number" placeholder="Optional" value={formData.previousPrice} onChange={(e) => setFormData({ ...formData, previousPrice: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-primary/50 outline-none" />
+                          </div>
                         </div>
 
                         <div>
@@ -424,7 +498,7 @@ export default function Combos() {
                         <div>
                           <div className="flex justify-between items-end mb-2">
                             <label className="block text-sm font-medium text-muted-foreground">Combo Image</label>
-                            <span className="text-[10px] text-muted-foreground/60 italic">Recommended: 4:5 Portrait ratio. 1000x1250px.</span>
+                            <span className="text-[10px] text-muted-foreground/60 italic">Recommended: 1080x1080px (1:1 square) for perfect grouping display.</span>
                           </div>
                           <div className="flex flex-wrap gap-4">
                             {formData.image && (

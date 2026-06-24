@@ -1,4 +1,6 @@
 import express from 'express';
+import { createServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 import { createServer as createViteServer } from 'vite';
 import mongoose from 'mongoose';
 import cors from 'cors';
@@ -38,6 +40,23 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  const httpServer = createServer(app);
+  const io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: "*",
+      methods: ["GET", "POST", "PUT", "DELETE"]
+    }
+  });
+
+  app.set('io', io);
+
+  io.on('connection', (socket) => {
+    console.log('Client connected for real-time updates:', socket.id);
+    socket.on('disconnect', () => {
+      console.log('Client disconnected:', socket.id);
+    });
+  });
+
   // Security and Performance Middleware
   app.use(helmet({
     contentSecurityPolicy: {
@@ -48,7 +67,8 @@ async function startServer() {
         imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "https://maps.googleapis.com"],
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
         frameSrc: ["'self'", "https://challenges.cloudflare.com", "https://www.google.com"],
-        connectSrc: ["'self'", "https://api.cloudinary.com"]
+        connectSrc: ["'self'", "https://api.cloudinary.com"],
+        mediaSrc: ["'self'", "https://res.cloudinary.com"]
       },
     },
     xFrameOptions: { action: 'deny' },
@@ -119,7 +139,7 @@ async function startServer() {
 
   // Health Check
   app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', message: 'Rivore API is running' });
+    res.json({ status: 'ok', message: 'Rivoré API is running' });
   });
 
   // Global error handler
@@ -143,7 +163,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
 }

@@ -21,7 +21,7 @@ export function CloudinaryImage({
   className = '',
   quality = 'auto',
   format = 'auto',
-  crop = 'fill',
+  crop = 'scale',
   loading = 'lazy',
   ...props
 }: CloudinaryImageProps) {
@@ -52,8 +52,8 @@ export function CloudinaryImage({
     return () => observer.disconnect();
   }, [loading]);
 
-  // Function to build Cloudinary optimized URL
   const getOptimizedUrl = (originalUrl: string, targetWidth?: number) => {
+    if (!originalUrl) return '';
     // Check if it's actually a Cloudinary URL
     if (!originalUrl.includes('cloudinary.com')) {
       return originalUrl;
@@ -90,16 +90,17 @@ export function CloudinaryImage({
 
   const optimizedSrc = isInView ? getOptimizedUrl(src, width) : '';
   const srcSet = isInView && width ? `
-    ${getOptimizedUrl(src, Math.round(width * 0.5))} 500w,
-    ${getOptimizedUrl(src, width)} 800w,
-    ${getOptimizedUrl(src, Math.round(width * 1.5))} 1200w,
-    ${getOptimizedUrl(src, Math.round(width * 2))} 1600w
+    ${getOptimizedUrl(src, Math.round(width * 0.5))} ${Math.round(width * 0.5)}w,
+    ${getOptimizedUrl(src, width)} ${width}w,
+    ${getOptimizedUrl(src, Math.round(width * 1.5))} ${Math.round(width * 1.5)}w,
+    ${getOptimizedUrl(src, Math.round(width * 2))} ${Math.round(width * 2)}w
   ` : undefined;
+
+  const isContain = className.includes('object-contain') || props.style?.objectFit === 'contain';
 
   return (
     <div 
-      className={`relative overflow-hidden ${!isLoaded ? 'bg-muted/30 animate-pulse' : ''} ${className}`}
-      style={{ width: width || 'auto', height: height || 'auto' }}
+      className={`relative overflow-hidden ${!isLoaded ? 'bg-muted/30 animate-pulse' : ''} ${className.replace('object-contain', '').replace('object-cover', '')}`}
     >
       <img
         ref={imgRef}
@@ -111,7 +112,7 @@ export function CloudinaryImage({
         height={height}
         loading={loading}
         onLoad={() => setIsLoaded(true)}
-        className={`w-full h-full object-cover transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${props.style?.objectFit === 'contain' ? 'object-contain' : ''}`}
+        className={`w-full h-full transition-opacity duration-500 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${isContain ? 'object-contain' : 'object-cover'}`}
         {...props}
       />
     </div>

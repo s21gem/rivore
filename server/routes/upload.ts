@@ -1,13 +1,30 @@
 import express from 'express';
 import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
 import { authenticateAdmin } from '../middleware/auth';
-import { uploadToCloudinary } from '../utils/cloudinary';
+import { uploadFileToCloudinary } from '../utils/cloudinary';
+import { handleMulterError } from '../middleware/multerErrorHandler';
 
 const router = express.Router();
 
-// Use memory storage for multer
+// Ensure uploads directory exists
+const uploadDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Use disk storage for multer to avoid RAM exhaustion on large video uploads
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => {
+      cb(null, uploadDir);
+    },
+    filename: (_req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
+    }
+  }),
   limits: { fileSize: 200 * 1024 * 1024 }, // 200MB limit
   fileFilter: (_req, file, cb) => {
     if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) {
@@ -18,56 +35,59 @@ const upload = multer({
   },
 });
 
-// Multer error handler middleware (must have 4 args to be an error handler)
-function handleMulterError(err: any, _req: express.Request, res: express.Response, next: express.NextFunction) {
-  if (err) {
-    console.error('[Upload] Multer Error:', err.message || err);
-    if (err instanceof multer.MulterError) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ message: 'File too large. Maximum size is 200MB.' });
-      }
-      return res.status(400).json({ message: err.message });
-    }
-    return res.status(400).json({ message: err.message || 'File upload error' });
-  }
-  next();
-}
-
 // Single file upload
-router.post('/', authenticateAdmin, upload.single('file'), handleMulterError, async (req: any, res) => {
+router.post('/', authenticateAdmin, upload.any(), handleMulterError, async (req: any, res) => {
+  const files = req.files as Express.Multer.File[];
+  const file = files && files.length > 0 ? files[0] : null;
+
   try {
-    if (!req.file) {
+    if (!file) {
       console.error('[Upload] No file in request. Body:', req.body);
-      return res.status(400).json({ message: 'No file uploaded. Make sure the field name is "file".' });
+      return res.status(400).json({ message: 'No file uploaded. Make sure a file is attached.' });
     }
 
-    console.log(`[Upload] Processing: ${req.file.originalname}`);
-    const url = await uploadToCloudinary(req.file.buffer, 'rivore');
+    console.log(`[Upload] Processing: ${file.originalname}`);
+    const url = await uploadFileToCloudinary(file.path, 'rivore');
     console.log(`[Upload] Success: ${url}`);
     res.json({ url });
   } catch (error: any) {
     console.error('[Upload] Cloudinary error:', error.message || error);
     res.status(500).json({ message: error.message || 'Error uploading to Cloudinary' });
+  } finally {
+    // Cleanup temporary file
+    if (file && fs.existsSync(file.path)) {
+      try { fs.unlinkSync(file.path); } catch (e) { console.error('Failed to clean up temp file:', e); }
+    }
   }
 });
 
 // Multi-image upload endpoint
 router.post('/multiple', authenticateAdmin, upload.array('images', 10), handleMulterError, async (req: any, res) => {
+  const files = req.files as Express.Multer.File[];
+  
   try {
-    const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) {
       console.error('[Upload] No files in request. Body:', req.body);
       return res.status(400).json({ message: 'No files uploaded. Make sure the field name is "images".' });
     }
 
     console.log(`[Upload] Processing ${files.length} files...`);
-    const uploadPromises = files.map(file => uploadToCloudinary(file.buffer, 'rivore'));
+    const uploadPromises = files.map(file => uploadFileToCloudinary(file.path, 'rivore'));
     const urls = await Promise.all(uploadPromises);
     console.log(`[Upload] Successfully uploaded ${urls.length} images`);
     res.json({ urls });
   } catch (error: any) {
     console.error('[Upload] Multi-upload error:', error.message || error);
     res.status(500).json({ message: error.message || 'Error uploading to Cloudinary' });
+  } finally {
+    // Cleanup temporary files
+    if (files) {
+      files.forEach(file => {
+        if (fs.existsSync(file.path)) {
+          try { fs.unlinkSync(file.path); } catch (e) { console.error('Failed to clean up temp file:', e); }
+        }
+      });
+    }
   }
 });
 

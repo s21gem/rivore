@@ -214,4 +214,77 @@ router.post('/reset-password/verify', verifyTurnstile, async (req, res) => {
   }
 });
 
+// Upgrade Guest Order to Account
+router.post('/upgrade-guest', async (req, res) => {
+  try {
+    const { orderId, invoiceId, email, password } = req.body;
+    
+    if ((!orderId && !invoiceId) || !email || !password) {
+      return res.status(400).json({ message: 'Order ID (or Invoice ID), email, and password are required' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'Password must be at least 6 characters' });
+    }
+
+    // Check if email already in use
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'Email is already registered. Please log in.' });
+    }
+
+    // Find the order
+    const Order = (await import('../models/Order')).default;
+    let order;
+    if (orderId) {
+      order = await Order.findById(orderId);
+    } else if (invoiceId) {
+      order = await Order.findOne({ 'paymentDetails.invoice_id': invoiceId });
+    }
+    
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found' });
+    }
+
+    if (order.customerId) {
+      return res.status(400).json({ message: 'Order is already linked to an account' });
+    }
+
+    // Create user based on order details
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const user = new User({
+      email,
+      password: hashedPassword,
+      fullName: order.customer.name,
+      role: 'customer'
+    });
+
+    await user.save();
+
+    // Initialize Rewards & Referrals
+    await new Reward({ customerId: user._id, points: 0 }).save();
+    const refCode = email.split('@')[0].toUpperCase().substring(0, 5) + Math.floor(100 + Math.random() * 900);
+    await new Referral({ customerId: user._id, referralCode: refCode }).save();
+
+    // Link Order
+    order.customerId = user._id as any;
+    if (!order.customer.email) order.customer.email = email;
+    await order.save();
+
+    // Login user
+    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET || 'rivore_secret_key', {
+      expiresIn: '7d',
+    });
+
+    res.status(201).json({ 
+      success: true,
+      token, 
+      user: { id: user._id, email: user.email, fullName: user.fullName, role: user.role, tier: user.tier, lifetimeSpend: user.lifetimeSpend } 
+    });
+  } catch (error: any) {
+    console.error('Guest upgrade error:', error);
+    res.status(500).json({ message: error.message || 'Server error' });
+  }
+});
+
 export default router;

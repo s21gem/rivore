@@ -51,6 +51,8 @@ export interface IOrder extends Document {
     status: 'none' | 'created' | 'sent' | 'failed';
     error?: string;
   };
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const orderSchema = new mongoose.Schema({

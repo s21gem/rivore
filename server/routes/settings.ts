@@ -15,7 +15,7 @@ const CACHE_TTL = 60 * 1000; // 1 min
 // Get settings (Public — strips sensitive payment credentials)
 router.get('/', async (req, res) => {
   try {
-    if (mongoose.connection.readyState !== 1) return res.json({ metaPixelId: '', storeName: 'Rivore', contactEmail: 'contact@rivore.com', contactPhone: '', heroImage: '', comboSectionImage: '' });
+    if (mongoose.connection.readyState !== 1) return res.json({ metaPixelId: '', storeName: 'Rivoré', contactEmail: 'contact@rivore.com', contactPhone: '', heroImage: '', comboSectionImage: '' });
 
     if (settingsCache && Date.now() - cacheTime < CACHE_TTL) {
       return res.json(settingsCache);
@@ -117,6 +117,10 @@ router.put('/', authenticateAdmin, logAdminActivity('Settings Updated', req => O
           });
         }
       }
+    }
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('settings_updated');
     }
 
     res.json(settings);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { customerApi } from '../../lib/customerApi';
-import { Loader2, ArrowLeft, Package, CheckCircle2, Truck, Box, ClipboardList, RefreshCw, ShoppingBag } from 'lucide-react';
+import { Loader2, ArrowLeft, Package, CheckCircle2, Truck, Box, ClipboardList, RefreshCw, ShoppingBag, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { useCartStore } from '../../store/cartStore';
 import { useNavigate } from 'react-router-dom';
@@ -48,14 +48,18 @@ export default function OrderTracking() {
     order.items.forEach((item: any) => {
       // Create a simplified product object for the cart
       const productForCart = {
-        _id: item.product?._id || item.combo?._id || Math.random().toString(),
+        id: (item.product?._id || item.combo?._id || Math.random().toString()) + (item.size ? `-${item.size}` : ''),
+        productId: item.product?._id,
+        comboId: item.combo?._id,
         name: item.name,
         price: item.price,
         image: item.image,
-        type: item.type,
+        type: item.type as any,
+        quantity: item.quantity,
+        size: item.size
       };
       
-      addItem(productForCart, item.quantity, item.size);
+      addItem(productForCart);
     });
     
     toast.success('Items added to cart');

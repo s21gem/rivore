@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import FailedLogin from '../models/FailedLogin';
 import SecurityEvent from '../models/SecurityEvent';
-import UAParser from 'ua-parser-js';
+import { UAParser } from 'ua-parser-js';
 import geoip from 'geoip-lite';
 
 export const checkFailedLogins = async (req: Request, res: Response, next: NextFunction) => {

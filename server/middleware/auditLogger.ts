@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import UAParser from 'ua-parser-js';
+import { UAParser } from 'ua-parser-js';
 import geoip from 'geoip-lite';
 import AdminActivity from '../models/AdminActivity';
 

@@ -2,7 +2,7 @@ import express from 'express';
 import User from '../models/User';
 import Address from '../models/Address';
 import Reward from '../models/Reward';
-import { authenticate } from '../middleware/auth';
+import { authenticateAdmin as authenticate } from '../middleware/auth';
 import AdminActivity from '../models/AdminActivity';
 import AuditTrail from '../models/AuditTrail';
 import FailedLogin from '../models/FailedLogin';

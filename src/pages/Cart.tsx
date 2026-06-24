@@ -1,11 +1,13 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Trash2, Minus, Plus, ShoppingBag } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
+import { useCustomerAuthStore } from '../store/customerAuthStore';
 import { trackInitiateCheckout } from '../components/MetaPixel';
 import { toast } from 'sonner';
 
 export default function Cart() {
   const { items, removeItem, updateQuantity, getTotal } = useCartStore();
+  const { user } = useCustomerAuthStore();
   const navigate = useNavigate();
 
   const handleRemove = (id: string, name: string) => {
@@ -15,7 +17,11 @@ export default function Cart() {
 
   const handleCheckout = () => {
     trackInitiateCheckout(getTotal(), items.length);
-    navigate('/checkout');
+    if (user) {
+      navigate('/checkout');
+    } else {
+      navigate('/checkout-auth');
+    }
   };
 
   if (items.length === 0) {

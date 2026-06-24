@@ -2,7 +2,7 @@ import cron from 'node-cron';
 import Order from '../models/Order';
 import { checkSteadfastStatus } from './courierService';
 
-// Maps Steadfast status strings to Rivore local Order statuses
+// Maps Steadfast status strings to Rivoré local Order statuses
 const statusMap: Record<string, string> = {
   'pending': 'Processing',
   'picked_up': 'Courier Received',

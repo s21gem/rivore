@@ -41,7 +41,7 @@ const userSchema = new mongoose.Schema({
   tier: { type: String, enum: ['Regular', 'Silver', 'Gold', 'Platinum'], default: 'Regular' },
   lastBirthdayCouponYear: { type: Number },
 }, { timestamps: true });
-userSchema.index({ email: 1 });
+
 userSchema.index({ role: 1 });
 userSchema.index({ tier: 1 });
 

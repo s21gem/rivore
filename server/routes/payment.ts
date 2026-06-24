@@ -2,6 +2,7 @@ import express from 'express';
 import Settings from '../models/Settings';
 import Order from '../models/Order';
 import { authenticateAdmin } from '../middleware/auth';
+import { sendMetaCapiEvent } from '../utils/metaCapi';
 
 const router = express.Router();
 
@@ -183,7 +184,7 @@ router.post('/sslcommerz/init', async (req, res) => {
       cus_city: customerCity || 'Dhaka',
       cus_country: 'Bangladesh',
       shipping_method: 'Courier',
-      product_name: 'Rivore Perfumes',
+      product_name: 'Rivoré Perfumes',
       product_category: 'Perfume',
       product_profile: 'general',
     });
@@ -349,6 +350,28 @@ const processPostPaymentAutomations = async (orderId: string, invoiceId?: string
       ipAddress: '127.0.0.1',
       deviceType: 'Server'
     }).catch(() => {});
+  }
+  
+  // 5. Trigger Meta CAPI for successful online payment
+  if (settings?.metaPixelId && settings?.metaConversionApiToken) {
+    sendMetaCapiEvent(
+      'Purchase',
+      {
+        value: order.totalAmount,
+        currency: 'BDT',
+        content_ids: order.items.map((i: any) => i.product?.toString() || i.combo?.toString() || i.id),
+        contents: order.items.map((i: any) => ({
+          id: i.product?.toString() || i.combo?.toString() || i.id,
+          quantity: i.quantity,
+          item_price: i.price
+        })),
+        email: order.customer?.email,
+        phone: order.customer?.phone,
+        eventId: order._id.toString()
+      },
+      settings.metaPixelId,
+      settings.metaConversionApiToken
+    );
   }
 };
 
@@ -589,7 +612,7 @@ router.get('/methods', async (req, res) => {
       methods.push({ id: 'SSLCommerz', name: 'Online Payment (Card/Mobile)', icon: 'card' });
     }
     if (settings?.paymentUddoktaPay?.enabled) {
-      methods.push({ id: 'UddoktaPay', name: 'UddoktaPay', icon: 'uddoktapay' });
+      methods.push({ id: 'UddoktaPay', name: 'Pay Online', icon: 'uddoktapay' });
     }
     res.json(methods);
   } catch (error) {

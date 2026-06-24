@@ -4,6 +4,7 @@ import multer from 'multer';
 import Product from '../models/Product';
 import { authenticateAdmin } from '../middleware/auth';
 import { uploadToCloudinary } from '../utils/cloudinary';
+import { handleMulterError } from '../middleware/multerErrorHandler';
 import { logAdminActivity } from '../middleware/auditLogger';
 
 const router = express.Router();
@@ -26,7 +27,7 @@ router.get('/', async (req, res) => {
   try {
     if (mongoose.connection.readyState !== 1) return res.json({ products: [], totalPages: 0, currentPage: 1, totalProducts: 0 });
 
-    const { category, featured, search, page, limit, ...attributes } = req.query;
+    const { category, featured, search, discounted, page, limit, ...attributes } = req.query;
     const filter: any = {};
     
     if (category && category !== 'All') filter.category = category;
@@ -34,6 +35,7 @@ router.get('/', async (req, res) => {
       filter.$or = [{ featured: true }, { isFeatured: true }];
     }
     if (search) filter.name = { $regex: search, $options: 'i' };
+    if (discounted === 'true') filter.discountAmount = { $gt: 0 };
 
     // Handle dynamic attributes
     Object.keys(attributes).forEach(key => {
@@ -48,7 +50,7 @@ router.get('/', async (req, res) => {
 
     const totalProducts = await Product.countDocuments(filter);
     const products = await Product.find(filter)
-      .sort({ createdAt: -1 })
+      .sort({ displayOrder: 1, createdAt: -1 })
       .skip(skip)
       .limit(limitNum)
       .lean();
@@ -161,7 +163,7 @@ router.get('/:idOrSlug', async (req, res) => {
 });
 
 // Create product (Admin)
-router.post('/', authenticateAdmin, upload.single('image'), logAdminActivity('Product Created', req => `Product Name: ${req.body?.name || 'Unknown'}`), async (req, res) => {
+router.post('/', authenticateAdmin, upload.single('image'), handleMulterError, logAdminActivity('Product Created', req => `Product Name: ${req.body?.name || 'Unknown'}`), async (req, res) => {
   try {
     let imageUrl = req.body.image;
 
@@ -189,6 +191,7 @@ router.post('/', authenticateAdmin, upload.single('image'), logAdminActivity('Pr
 
     const product = new Product(productData);
     await product.save();
+    req.app.get('io')?.emit('products_updated');
     res.status(201).json(product);
   } catch (error) {
     console.error('Error creating product:', error);
@@ -196,8 +199,32 @@ router.post('/', authenticateAdmin, upload.single('image'), logAdminActivity('Pr
   }
 });
 
+// Reorder products (Admin)
+router.put('/reorder', authenticateAdmin, async (req, res) => {
+  try {
+    const { items } = req.body; // Array of { _id, displayOrder }
+    if (!Array.isArray(items)) return res.status(400).json({ message: 'Invalid data format' });
+
+    const bulkOps = items.map((item) => ({
+      updateOne: {
+        filter: { _id: item._id },
+        update: { displayOrder: item.displayOrder },
+      },
+    }));
+
+    if (bulkOps.length > 0) {
+      await Product.bulkWrite(bulkOps);
+      req.app.get('io')?.emit('products_updated');
+    }
+
+    res.json({ message: 'Products reordered successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error while reordering', error });
+  }
+});
+
 // Update product (Admin)
-router.put('/:id', authenticateAdmin, upload.single('image'), logAdminActivity('Product Updated', req => `Product ID: ${req.params.id}`), async (req, res) => {
+router.put('/:id', authenticateAdmin, upload.single('image'), handleMulterError, logAdminActivity('Product Updated', req => `Product ID: ${req.params.id}`), async (req, res) => {
   try {
     let imageUrl = req.body.image;
 
@@ -223,6 +250,7 @@ router.put('/:id', authenticateAdmin, upload.single('image'), logAdminActivity('
 
     const product = await Product.findByIdAndUpdate(req.params.id, productData, { returnDocument: 'after' });
     if (!product) return res.status(404).json({ message: 'Product not found' });
+    req.app.get('io')?.emit('products_updated');
     res.json(product);
   } catch (error: any) {
     console.error('Error updating product:', error);
@@ -235,6 +263,7 @@ router.delete('/:id', authenticateAdmin, logAdminActivity('Product Deleted', req
   try {
     const product = await Product.findByIdAndDelete(req.params.id);
     if (!product) return res.status(404).json({ message: 'Product not found' });
+    req.app.get('io')?.emit('products_updated');
     res.json({ message: 'Product deleted' });
   } catch (error) {
     res.status(500).json({ message: 'Server error' });

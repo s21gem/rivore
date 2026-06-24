@@ -3,6 +3,7 @@ import mongoose, { Document, Model } from 'mongoose';
 export interface ISettings extends Document {
   // Existing fields
   metaPixelId: string;
+  metaConversionApiToken: string;
   storeName: string;
   shippingCharge: number;
   contactEmail: string;
@@ -35,12 +36,12 @@ export interface ISettings extends Document {
   bannerMessages: string[];
 
   // CMS: Signature Collection
-  signatureProducts: { productId: string; tagline: string }[];
+  signatureProducts: { productId: string; tagline: string; image?: string; customDescription?: string }[];
 
   // CMS: Best Sellers Slider
   bestSellerSliderItems: { image: string; productId: string; title: string }[];
 
-  // CMS: Why Rivore
+  // CMS: Why Rivoré
   whyRivoreItems: { icon: string; title: string; description: string }[];
 
   // CMS: Store Location
@@ -139,12 +140,33 @@ export interface ISettings extends Document {
   adminSessionSettings: {
     timeoutMinutes: number;
   };
+
+  // CMS: Discounted Perfumes Section
+  discountedSection: {
+    enabled: boolean;
+    title: string;
+    subtitle: string;
+    desktopBannerImage: string;
+    mobileBannerImage: string;
+    bannerLink: string;
+    desktopBannerWidth: number;
+    desktopBannerHeight: number;
+    mobileBannerWidth: number;
+    mobileBannerHeight: number;
+    productImageWidth: number;
+    productImageHeight: number;
+    desktopProductsPerRow: number;
+    tabletProductsPerRow: number;
+    mobileProductsPerRow: number;
+    sortOrder: number;
+  };
 }
 
 const settingsSchema = new mongoose.Schema({
   // Existing fields
   metaPixelId: { type: String, default: '' },
-  storeName: { type: String, default: 'Rivore' },
+  metaConversionApiToken: { type: String, default: '' },
+  storeName: { type: String, default: 'Rivoré' },
   shippingCharge: { type: Number, default: 0 },
   contactEmail: { type: String, default: 'contact@rivore.com' },
   contactPhone: { type: String, default: '' },
@@ -188,7 +210,9 @@ const settingsSchema = new mongoose.Schema({
   // CMS: Signature Collection
   signatureProducts: [{
     productId: { type: String },
-    tagline: { type: String, default: '' }
+    tagline: { type: String, default: '' },
+    image: { type: String, default: '' },
+    customDescription: { type: String, default: '' }
   }],
 
   // CMS: Best Sellers Slider
@@ -198,7 +222,7 @@ const settingsSchema = new mongoose.Schema({
     title: { type: String, default: '' }
   }],
 
-  // CMS: Why Rivore
+  // CMS: Why Rivoré
   whyRivoreItems: [{
     icon: { type: String, default: 'Sparkles' },
     title: { type: String },
@@ -310,6 +334,26 @@ const settingsSchema = new mongoose.Schema({
   // CMS: Admin Session Settings
   adminSessionSettings: {
     timeoutMinutes: { type: Number, default: 30 },
+  },
+
+  // CMS: Discounted Perfumes Section
+  discountedSection: {
+    enabled: { type: Boolean, default: true },
+    title: { type: String, default: 'Discounted Perfumes' },
+    subtitle: { type: String, default: '' },
+    desktopBannerImage: { type: String, default: '' },
+    mobileBannerImage: { type: String, default: '' },
+    bannerLink: { type: String, default: '' },
+    desktopBannerWidth: { type: Number, default: 380 },
+    desktopBannerHeight: { type: Number, default: 720 },
+    mobileBannerWidth: { type: Number, default: 100 }, // treated as percentage if <= 100, else px
+    mobileBannerHeight: { type: Number, default: 0 },  // 0 means auto
+    productImageWidth: { type: Number, default: 320 },
+    productImageHeight: { type: Number, default: 320 },
+    desktopProductsPerRow: { type: Number, default: 4 },
+    tabletProductsPerRow: { type: Number, default: 3 },
+    mobileProductsPerRow: { type: Number, default: 2 },
+    sortOrder: { type: Number, default: 0 }
   },
 }, { timestamps: true });
 

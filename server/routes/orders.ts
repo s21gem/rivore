@@ -13,6 +13,8 @@ import * as XLSX from 'xlsx';
 import { sendOrderConfirmationEmail, sendOrderShippedEmail, sendOrderDeliveredEmail } from '../utils/sendEmail';
 import { sendOrderToSteadfast } from '../services/courierService';
 import { verifyTurnstile } from '../middleware/turnstile';
+import AdminActivity from '../models/AdminActivity';
+import { sendMetaCapiEvent } from '../utils/metaCapi';
 
 const router = express.Router();
 
@@ -53,9 +55,12 @@ router.post('/', verifyTurnstile, async (req, res) => {
           }
 
           // Calculate Price
-          let basePrice = product.price;
-          if (item.size && product.sizes && product.sizes[item.size]) {
-            basePrice = product.sizes[item.size];
+          let basePrice = product.price || 0;
+          if (item.size && product.sizes) {
+            const sizePrice = product.sizes instanceof Map ? product.sizes.get(item.size) : (product.sizes as any)[item.size];
+            if (sizePrice !== undefined) {
+              basePrice = sizePrice;
+            }
           }
           const discountPct = product.discountAmount || 0;
           const displayPrice = discountPct > 0 ? Math.round(basePrice * (1 - discountPct / 100)) : basePrice;
@@ -260,6 +265,33 @@ router.post('/', verifyTurnstile, async (req, res) => {
 
       await session.commitTransaction();
       session.endSession();
+
+      // Trigger Meta CAPI Purchase Event immediately only for COD
+      // Online payments will trigger from their respective webhook handlers
+      if (settings?.metaPixelId && settings?.metaConversionApiToken && order.paymentMethod === 'COD') {
+        sendMetaCapiEvent(
+          'Purchase',
+          {
+            value: order.totalAmount,
+            currency: 'BDT',
+            content_ids: order.items.map((i: any) => i.product?.toString() || i.combo?.toString() || i.id),
+            contents: order.items.map((i: any) => ({
+              id: i.product?.toString() || i.combo?.toString() || i.id,
+              quantity: i.quantity,
+              item_price: i.price
+            })),
+            email: order.customer?.email,
+            phone: order.customer?.phone,
+            eventId: order._id.toString()
+          },
+          settings.metaPixelId,
+          settings.metaConversionApiToken,
+          req.ip,
+          req.headers['user-agent'],
+          req.cookies ? req.cookies['_fbp'] : undefined,
+          req.cookies ? req.cookies['_fbc'] : undefined
+        );
+      }
 
       // Send email asynchronously so it doesn't block the response
       try {
@@ -515,7 +547,7 @@ router.post('/:id/refund', authenticateAdmin, async (req, res) => {
       refundStatus: 'Pending',
       refundReason: reason,
       refundAmount: order.totalAmount,
-      refundRequestedAt: new Date().toISOString(),
+      refundDate: new Date().toISOString(),
       refundRequestedBy: 'Admin'
     };
 
@@ -528,13 +560,13 @@ router.post('/:id/refund', authenticateAdmin, async (req, res) => {
     await order.save();
     
     // Log Activity
-    await logActivity({
-      userId: req.user.id,
+    await AdminActivity.create({
+      adminId: (req as any).user?.id || 'Unknown',
+      adminName: (req as any).user?.email || 'Admin',
       action: 'Refund Initiated',
-      targetType: 'Order',
-      targetId: order._id,
-      details: { orderId: order._id, amount: order.totalAmount, reason }
-    });
+      target: `Order: ${order._id}`,
+      details: `Amount: ${order.totalAmount}, Reason: ${reason}`
+    }).catch(console.error);
 
     res.json({ message: 'Refund initiated', order });
   } catch (error) {

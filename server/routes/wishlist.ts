@@ -2,7 +2,7 @@ import express from 'express';
 import Wishlist from '../models/Wishlist';
 import Product from '../models/Product';
 import Combo from '../models/Combo';
-import { authenticate } from '../middleware/auth';
+import { authenticateAdmin as authenticate } from '../middleware/auth';
 
 const router = express.Router();
 

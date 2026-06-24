@@ -13,6 +13,7 @@ const ProductDetails = React.lazy(() => import('./pages/ProductDetails'));
 const ComboPage = React.lazy(() => import('./pages/ComboPage'));
 const Cart = React.lazy(() => import('./pages/Cart'));
 const Checkout = React.lazy(() => import('./pages/Checkout'));
+const CheckoutAuth = React.lazy(() => import('./pages/CheckoutAuth'));
 const About = React.lazy(() => import('./pages/About'));
 const Contact = React.lazy(() => import('./pages/Contact'));
 const ReturnPolicy = React.lazy(() => import('./pages/ReturnPolicy'));
@@ -80,6 +81,7 @@ function App() {
               <Route path="combos" element={<ComboPage />} />
               <Route path="cart" element={<Cart />} />
               <Route path="checkout" element={<Checkout />} />
+              <Route path="checkout-auth" element={<CheckoutAuth />} />
               <Route path="about" element={<About />} />
               <Route path="contact" element={<Contact />} />
               <Route path="return-policy" element={<ReturnPolicy />} />

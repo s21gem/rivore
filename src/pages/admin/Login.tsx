@@ -46,7 +46,7 @@ export default function Login() {
     <div className={`min-h-screen flex items-center justify-center bg-background px-4 ${isDark ? 'dark' : ''}`}>
       <div className="bg-card p-10 md:p-16 w-full max-w-md border border-border">
         <div className="text-center mb-12">
-          <h1 className="text-3xl font-serif font-light text-primary mb-3 tracking-[0.2em] uppercase">Rivore</h1>
+          <h1 className="text-3xl font-serif font-light text-primary mb-3 tracking-[0.2em] uppercase">Rivoré</h1>
           <p className="text-[10px] uppercase tracking-[0.3em] font-medium text-muted-foreground">Admin Portal</p>
         </div>
 

@@ -62,7 +62,6 @@ export default function Recommendations({ title = "Recommended For You", limit =
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
           {recommendations.map((product) => {
             const displayImage = product.image || product.images?.[0] || 'https://via.placeholder.com/400';
-            const hoverImage = product.images?.[1] || displayImage;
             const price = product.sizes ? Object.values(product.sizes)[0] : product.price;
 
             return (
@@ -71,18 +70,10 @@ export default function Recommendations({ title = "Recommended For You", limit =
                   <CloudinaryImage 
                     src={displayImage} 
                     alt={product.name} 
-                    className="w-full h-full object-contain p-4 transition-all duration-700 group-hover:opacity-0 group-hover:scale-105" 
+                    className="w-full h-full object-contain p-4 transition-all duration-700 group-hover:scale-105" 
                     loading="lazy"
                     width={400}
                   />
-                  <div className="absolute inset-0 m-auto w-full h-full object-contain p-4 opacity-0 transition-all duration-700 group-hover:opacity-100 group-hover:scale-105">
-                    <CloudinaryImage 
-                      src={hoverImage} 
-                      alt={`${product.name} alternate`} 
-                      loading="lazy"
-                      width={400}
-                    />
-                  </div>
                 </Link>
                 <div className="text-center px-2">
                   <p className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-[#C9A96E] mb-1">{product.category}</p>

@@ -12,6 +12,8 @@ export interface ICombo extends Document {
   featured: boolean;
   isCustomizable: boolean;
   customSize: number;
+  previousPrice?: number;
+  displayOrder: number;
 }
 
 const comboSchema = new mongoose.Schema({
@@ -26,6 +28,8 @@ const comboSchema = new mongoose.Schema({
   featured: { type: Boolean, default: false },
   isCustomizable: { type: Boolean, default: false },
   customSize: { type: Number, default: 0 },
+  previousPrice: { type: Number },
+  displayOrder: { type: Number, default: 0 },
 }, { timestamps: true });
 
 const Combo = (mongoose.models.Combo as Model<ICombo>) || mongoose.model<ICombo>('Combo', comboSchema);

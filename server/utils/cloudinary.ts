@@ -23,4 +23,18 @@ export const uploadToCloudinary = (buffer: Buffer, folder: string): Promise<stri
   });
 };
 
+export const uploadFileToCloudinary = (filePath: string, folder: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload(
+      filePath,
+      { folder, resource_type: 'auto' },
+      (error, result) => {
+        if (error) return reject(error);
+        if (!result?.secure_url) return reject(new Error('Cloudinary did not return a URL'));
+        resolve(result.secure_url);
+      }
+    );
+  });
+};
+
 export default cloudinary;

@@ -15,6 +15,8 @@ export interface IProduct extends Document {
   stock: number;
   lowStockThreshold: number;
   isOutOfStock: boolean;
+  salesCount: number;
+  displayOrder: number;
   // Keep old fields optional for backward compatibility during migration
   price?: number;
   images?: string[];
@@ -55,6 +57,8 @@ const productSchema = new mongoose.Schema({
   attributes: { type: Map, of: String },
   notesImage: { type: String, default: '' },
   discountAmount: { type: Number, default: 0 },
+  salesCount: { type: Number, default: 0 },
+  displayOrder: { type: Number, default: 0 },
 }, { timestamps: true });
 
 productSchema.pre('save', function(this: any) {
@@ -87,7 +91,7 @@ productSchema.pre('findOneAndUpdate', function(this: any) {
     }
   }
 });
-productSchema.index({ slug: 1 });
+
 productSchema.index({ category: 1 });
 productSchema.index({ isFeatured: -1 });
 

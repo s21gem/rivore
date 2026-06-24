@@ -4,11 +4,22 @@ import multer from 'multer';
 import { Testimonial } from '../models/Testimonial';
 import { authenticateAdmin } from '../middleware/auth';
 import { uploadToCloudinary } from '../utils/cloudinary';
+import { handleMulterError } from '../middleware/multerErrorHandler';
 
 const router = express.Router();
 
 const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  },
+});
 
 // Public: Get testimonials
 router.get('/', async (req, res) => {
@@ -33,7 +44,7 @@ router.get('/', async (req, res) => {
 });
 
 // Admin: Configure a new testimonial
-router.post('/', authenticateAdmin, upload.single('image'), async (req, res) => {
+router.post('/', authenticateAdmin, upload.single('image'), handleMulterError, async (req, res) => {
   try {
 
 
@@ -62,7 +73,7 @@ router.post('/', authenticateAdmin, upload.single('image'), async (req, res) => 
 });
 
 // Admin: Update a testimonial
-router.put('/:id', authenticateAdmin, upload.single('image'), async (req, res) => {
+router.put('/:id', authenticateAdmin, upload.single('image'), handleMulterError, async (req, res) => {
   try {
 
 

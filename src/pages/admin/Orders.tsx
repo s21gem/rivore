@@ -171,7 +171,7 @@ export default function Orders() {
   };
 
   const handleWhatsApp = (order: any) => {
-    const message = `Hello ${order.customer.name}, your Rivore order has been received. Please confirm your order.`;
+    const message = `Hello ${order.customer.name}, your Rivoré order has been received. Please confirm your order.`;
     let phone = order.customer.phone.replace(/[^0-9]/g, '');
     if (phone.startsWith('0')) {
       phone = '88' + phone;

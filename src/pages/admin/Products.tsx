@@ -3,6 +3,48 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../store/authStore';
 import { Plus, Edit, Trash2, Upload, X, Check, Eye } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
+const SortableProductRow = ({ product, handleOpenModal, handleDelete }: any) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product._id });
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : 1, position: isDragging ? 'relative' as any : 'static' as any };
+
+  return (
+    <tr ref={setNodeRef} style={style} className={`border-b border-border hover:bg-muted/30 transition-colors ${isDragging ? 'bg-muted/50 opacity-50 shadow-lg' : 'bg-card'}`}>
+      <td className="p-4 w-10 text-center">
+        <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-primary inline-block">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line></svg>
+        </div>
+      </td>
+      <td className="p-4 flex items-center gap-4">
+        <img src={product.image || product.images?.[0] || 'https://via.placeholder.com/50'} alt={product.name} className="w-12 h-12 rounded-lg object-cover" referrerPolicy="no-referrer" />
+        <span className="font-medium text-foreground">{product.name}</span>
+      </td>
+      <td className="p-4 text-muted-foreground">{product.category}</td>
+      <td className="p-4 text-foreground font-medium">৳{product.sizes ? Object.values(product.sizes)[0] as React.ReactNode : product.price as React.ReactNode}</td>
+      <td className="p-4">
+        {product.stock <= 0 ? (
+          <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full border border-red-200">Out of Stock</span>
+        ) : product.stock <= (product.lowStockThreshold || 5) ? (
+          <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full border border-yellow-200">Low Stock ({product.stock})</span>
+        ) : (
+          <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full border border-green-200">In Stock ({product.stock})</span>
+        )}
+      </td>
+      <td className="p-4 text-muted-foreground">{product.isFeatured || product.featured ? 'Yes' : 'No'}</td>
+      <td className="p-4 text-right">
+        <button onClick={() => handleOpenModal(product)} className="text-blue-500 hover:text-blue-700 p-2 transition-colors">
+          <Edit className="w-5 h-5" />
+        </button>
+        <button onClick={() => handleDelete(product._id)} className="text-red-500 hover:text-red-700 p-2 transition-colors">
+          <Trash2 className="w-5 h-5" />
+        </button>
+      </td>
+    </tr>
+  );
+};
 
 const TagInput = ({ tags, setTags, placeholder }: { tags: string[], setTags: (tags: string[]) => void, placeholder: string }) => {
   const [input, setInput] = useState('');
@@ -98,6 +140,38 @@ export default function Products() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const notesImgRef = useRef<HTMLInputElement>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = products.findIndex((p) => p._id === active.id);
+    const newIndex = products.findIndex((p) => p._id === over.id);
+
+    const reorderedProducts = arrayMove(products, oldIndex, newIndex);
+    setProducts(reorderedProducts);
+
+    // Save to backend
+    const items = reorderedProducts.map((p, idx) => ({ _id: p._id, displayOrder: idx }));
+    try {
+      const activeToken = token || localStorage.getItem('token');
+      await axios.put('/api/products/reorder', { items }, {
+        headers: { Authorization: `Bearer ${activeToken}` }
+      });
+      toast.success('Products reordered successfully');
+    } catch (error) {
+      console.error('Reorder error:', error);
+      toast.error('Failed to save product order');
+      fetchProductsAndSettings(); // Revert
+    }
+  };
 
   const fetchProductsAndSettings = async () => {
     try {
@@ -414,48 +488,33 @@ export default function Products() {
       </div>
 
       <div className="bg-card rounded-2xl shadow-sm border border-border overflow-hidden hidden md:block">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-muted/50 border-b border-border text-muted-foreground text-sm uppercase tracking-wider">
-              <th className="p-4 font-semibold">Product</th>
-              <th className="p-4 font-semibold">Category</th>
-              <th className="p-4 font-semibold">Price</th>
-              <th className="p-4 font-semibold">Stock</th>
-              <th className="p-4 font-semibold">Featured</th>
-              <th className="p-4 font-semibold text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {products.map((product) => (
-              <tr key={product._id} className="border-b border-border hover:bg-muted/30 transition-colors">
-                <td className="p-4 flex items-center gap-4">
-                  <img src={product.image || product.images?.[0] || 'https://via.placeholder.com/50'} alt={product.name} className="w-12 h-12 rounded-lg object-cover" referrerPolicy="no-referrer" />
-                  <span className="font-medium text-foreground">{product.name}</span>
-                </td>
-                <td className="p-4 text-muted-foreground">{product.category}</td>
-                <td className="p-4 text-foreground font-medium">৳{product.sizes ? Object.values(product.sizes)[0] as React.ReactNode : product.price as React.ReactNode}</td>
-                <td className="p-4">
-                  {product.stock <= 0 ? (
-                    <span className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full border border-red-200">Out of Stock</span>
-                  ) : product.stock <= (product.lowStockThreshold || 5) ? (
-                    <span className="bg-yellow-100 text-yellow-800 text-xs font-medium px-2.5 py-0.5 rounded-full border border-yellow-200">Low Stock ({product.stock})</span>
-                  ) : (
-                    <span className="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full border border-green-200">In Stock ({product.stock})</span>
-                  )}
-                </td>
-                <td className="p-4 text-muted-foreground">{product.isFeatured || product.featured ? 'Yes' : 'No'}</td>
-                <td className="p-4 text-right">
-                  <button onClick={() => handleOpenModal(product)} className="text-blue-500 hover:text-blue-700 p-2 transition-colors">
-                    <Edit className="w-5 h-5" />
-                  </button>
-                  <button onClick={() => handleDelete(product._id)} className="text-red-500 hover:text-red-700 p-2 transition-colors">
-                    <Trash2 className="w-5 h-5" />
-                  </button>
-                </td>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-muted/50 border-b border-border text-muted-foreground text-sm uppercase tracking-wider">
+                <th className="p-4 font-semibold w-10"></th>
+                <th className="p-4 font-semibold">Product</th>
+                <th className="p-4 font-semibold">Category</th>
+                <th className="p-4 font-semibold">Price</th>
+                <th className="p-4 font-semibold">Stock</th>
+                <th className="p-4 font-semibold">Featured</th>
+                <th className="p-4 font-semibold text-right">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <SortableContext items={products.map(p => p._id)} strategy={verticalListSortingStrategy}>
+              <tbody>
+                {products.map((product) => (
+                  <SortableProductRow 
+                    key={product._id} 
+                    product={product} 
+                    handleOpenModal={handleOpenModal} 
+                    handleDelete={handleDelete} 
+                  />
+                ))}
+              </tbody>
+            </SortableContext>
+          </table>
+        </DndContext>
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:hidden">
@@ -640,7 +699,7 @@ export default function Products() {
                       <div>
                         <div className="flex justify-between items-end mb-2">
                           <label className="block text-sm font-medium text-muted-foreground">Product Images</label>
-                          <span className="text-[10px] text-muted-foreground/60 italic">Recommended: 1:1 (Square) or 4:5 (Portrait) ratio. 1000px+ for clarity.</span>
+                          <span className="text-[10px] text-muted-foreground/60 italic">Recommended: 800x1000px (4:5 ratio) for best luxury display.</span>
                         </div>
                         <div className="flex flex-wrap gap-4">
                           {formData.images?.map((img, idx) => (
@@ -675,7 +734,7 @@ export default function Products() {
                       <div>
                         <div className="flex justify-between items-end mb-2">
                           <label className="block text-sm font-medium text-muted-foreground">Fragrance Notes Image override</label>
-                          <span className="text-[10px] text-muted-foreground/60 italic">Recommended: 1:1 Square ratio. 600x600px.</span>
+                          <span className="text-[10px] text-muted-foreground/60 italic">Recommended: 500x500px (1:1 square).</span>
                         </div>
                         <div className="flex gap-4">
                           {formData.notesImage && (

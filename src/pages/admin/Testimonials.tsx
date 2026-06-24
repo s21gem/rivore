@@ -261,7 +261,7 @@ export default function Testimonials() {
               <div>
                 <div className="flex justify-between items-end mb-2">
                   <label className="block text-sm font-medium">Avatar Image (Optional)</label>
-                  <span className="text-[10px] text-muted-foreground/60 italic">Recommended: 1:1 Square ratio. 200x200px.</span>
+                  <span className="text-[10px] text-muted-foreground/60 italic">Recommended: 300x300px (1:1 square).</span>
                 </div>
                 <div className="flex items-center gap-4">
                   {imagePreview ? (

@@ -4,7 +4,7 @@ import Loader from '../components/Loader';
 import { useCartStore } from '../store/cartStore';
 import { trackAddToCart, trackViewContent } from '../components/MetaPixel';
 import { toast } from 'sonner';
-import { CheckCircle2, Clock, Star, Phone, Check, X, ShieldAlert } from 'lucide-react';
+import { CheckCircle2, Clock, Star, Phone, Check, X, ShieldAlert, Info } from 'lucide-react';
 import { CloudinaryImage } from '../components/ui/CloudinaryImage';
 
 export default function ComboPage() {
@@ -18,6 +18,7 @@ export default function ComboPage() {
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [activeCombo, setActiveCombo] = useState<any>(null);
   const [customSelections, setCustomSelections] = useState<any[]>([]);
+  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isBuilderOpen) {
@@ -46,6 +47,21 @@ export default function ComboPage() {
              products: c.products || [],
              customSize: c.customSize || (c.products ? c.products.length : 0)
           })) : [];
+
+          // Ensure 'Make Your Own Combo' is always present at the end
+          if (!safeCombos.some((c: any) => c.isCustomizable)) {
+            safeCombos.push({
+              _id: 'custom-combo-builder',
+              name: 'Make Your Own Combo',
+              category: 'Custom',
+              description: 'Select exactly 3 bottles of your choice from our exclusive collection. Mix and match to discover your perfect signature scent rotational set.',
+              price: 4500,
+              isCustomizable: true,
+              customSize: 3,
+              images: ['https://images.unsplash.com/photo-1594035910387-fea47794261f?w=800&q=80'],
+              highlights: ['Fully Customizable', 'Great Value', 'Perfect Gift']
+            });
+          }
           
           setCombos(safeCombos);
           setAllProducts(pData.products || pData || []);
@@ -152,7 +168,7 @@ export default function ComboPage() {
         <div className="text-center mb-16">
           <h1 className="text-5xl font-serif font-bold text-[#111111] mb-4">Exclusive Combos</h1>
           <p className="text-lg text-[#555555] max-w-2xl mx-auto">
-            Experience the full spectrum of Rivore with our specially curated bundle sets. Pick a curated box or build your own!
+            Experience the full spectrum of Rivoré with our specially curated bundle sets. Pick a curated box or build your own!
           </p>
         </div>
 
@@ -205,30 +221,28 @@ export default function ComboPage() {
                       width={800}
                     />
                   )}
-                  
-                  <div className="absolute inset-0 bg-gradient-to-t from-white/90 via-transparent to-transparent pointer-events-none z-40"></div>
-                  
-                  <div className="absolute top-8 left-8 flex flex-col gap-3 z-50">
-                    {highlights.map((highlight: string, i: number) => (
-                      <span key={i} className="bg-white/90 backdrop-blur-md border border-[#eeeeee] text-[#111111] px-5 py-2 rounded-full text-sm font-bold tracking-wide shadow-sm flex items-center gap-2">
-                        <Star className="w-4 h-4 fill-[#C9A96E] text-[#C9A96E]" />
-                        {highlight}
-                      </span>
-                    ))}
-                  </div>
 
-                  <div className="absolute bottom-10 left-10 text-[#111111] z-50 drop-shadow-md">
-                    <p className="text-sm font-bold uppercase tracking-widest text-[#C9A96E] mb-3">{combo.category} Collection</p>
-                    <h2 className="text-4xl md:text-5xl font-serif font-bold">{combo.name}</h2>
-                  </div>
                 </div>
               </div>
 
               <div className="w-full md:w-1/2 space-y-8">
                 <div>
-                  <div className="flex items-center gap-3 mb-4">
-                    <h3 className="text-3xl font-serif font-bold text-[#111111]">{combo.isCustomizable ? 'Build Your Own' : 'The Bundle'}</h3>
-                    {combo.isCustomizable && <span className="bg-[#C9A96E]/15 text-[#C9A96E] px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-[#C9A96E]/20">Custom Box</span>}
+                  <div className="mb-4">
+                    <p className="text-sm font-bold uppercase tracking-widest text-[#C9A96E] mb-2">{combo.category} Collection</p>
+                    <div className="flex items-center gap-3 mb-4">
+                      <h2 className="text-4xl md:text-5xl font-serif font-bold text-[#111111]">{combo.name}</h2>
+                      {combo.isCustomizable && <span className="bg-[#C9A96E]/15 text-[#C9A96E] px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border border-[#C9A96E]/20">Custom Box</span>}
+                    </div>
+                    {highlights && highlights.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {highlights.map((highlight: string, i: number) => (
+                          <span key={i} className="bg-[#faf8ff] border border-[#eeeeee] text-[#111111] px-3 py-1.5 rounded-full text-xs font-bold tracking-wide flex items-center gap-1.5">
+                            <Star className="w-3.5 h-3.5 fill-[#C9A96E] text-[#C9A96E]" />
+                            {highlight}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <p className="text-[#555555] text-lg leading-relaxed">
                     {combo.description}
@@ -266,22 +280,25 @@ export default function ComboPage() {
                       <p className="text-sm text-[#777777] uppercase tracking-wider mb-1">Bundle Price</p>
                       <div className="flex items-baseline gap-2">
                         <p className="text-4xl font-serif font-bold text-[#C9A96E]">৳{combo.price}</p>
-                        <span className="text-sm text-[#999999] line-through">৳{combo.price + 500}</span>
+                        <span className="text-sm text-[#999999] line-through">৳{combo.previousPrice ? combo.previousPrice : combo.price + 500}</span>
                       </div>
                     </div>
                     <div className="flex flex-col items-end gap-3 w-full sm:w-auto">
-                      <button
-                        onClick={() => handleAddToCart(combo)}
-                        className="btn-primary px-8 py-4 rounded-full font-bold text-lg w-full"
-                      >
-                        Order Combo Now
-                      </button>
-                      <button
-                        onClick={() => openBuilder(combo)}
-                        className="bg-transparent text-[#111111] px-8 py-4 rounded-full font-bold text-lg border-2 border-[#eeeeee] hover:border-[#cccccc] hover:bg-[#faf8ff] active:scale-95 transition-all duration-300 w-full flex items-center gap-2 justify-center"
-                      >
-                        Make Your Own Combo
-                      </button>
+                      {!combo.isCustomizable ? (
+                        <button
+                          onClick={() => handleAddToCart(combo)}
+                          className="btn-primary px-8 py-4 rounded-full font-bold text-lg w-full"
+                        >
+                          Order Combo Now
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => openBuilder(combo)}
+                          className="btn-primary px-8 py-4 rounded-full font-bold text-lg w-full flex items-center gap-2 justify-center"
+                        >
+                          Make Your Own Combo
+                        </button>
+                      )}
                       <div className="flex items-center gap-1.5 mt-1 text-red-500 font-medium text-sm">
                         <Clock className="w-4 h-4" />
                         <span>Limited stock available</span>
@@ -348,25 +365,38 @@ export default function ComboPage() {
               {/* Product Grid Area */}
               <div className="flex-1 overflow-y-auto p-4 md:p-8 bg-white hide-scrollbar">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 pb-24 md:pb-0">
-                  {allProducts.map(prod => {
+                  {allProducts.map((prod, idx) => {
                     const isSelected = customSelections.find(p => p._id === prod._id);
                     const isOOS = prod.stock <= 0;
                     const maxReached = customSelections.length >= activeCombo.customSize;
 
+                    // Calculate safe tooltip position to prevent horizontal overflow
+                    const isFarRightDesktop = idx % 4 === 3;
+                    const isRightMobile = idx % 2 === 1;
+                    
+                    let tooltipPositionClass = 'left-0 origin-top-left';
+                    if (isFarRightDesktop) {
+                        tooltipPositionClass = 'right-0 left-auto origin-top-right';
+                    } else if (isRightMobile) {
+                        tooltipPositionClass = 'right-0 md:left-0 md:right-auto origin-top-right md:origin-top-left';
+                    }
+
                     return (
                       <div 
                         key={prod._id} 
-                        onClick={() => toggleProductSelection(prod)}
-                        className={`relative rounded-2xl overflow-hidden transition-all duration-300 ${
-                           isOOS ? 'opacity-50 cursor-not-allowed' : 
+                        className={`relative rounded-2xl transition-all duration-300 ${
+                           isOOS ? 'opacity-50' : 
                            isSelected ? 'ring-2 ring-[#C9A96E] shadow-md border-transparent' : 
-                          'hover:shadow-md cursor-pointer border-[#eeeeee]'
+                          'hover:shadow-md border-[#eeeeee]'
                         } bg-white border border-[#eeeeee]`}
                       >
-                         <div className="aspect-[3/4] flex items-center justify-center p-4 relative bg-[#faf8ff]">
+                         <div 
+                            className={`aspect-[3/4] flex items-center justify-center overflow-hidden relative bg-[#faf8ff] rounded-t-2xl ${isOOS ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                            onClick={() => !isOOS && toggleProductSelection(prod)}
+                         >
                             <div className="absolute inset-0 flex justify-center items-center pointer-events-none"><div className="w-20 h-20 bg-white blur-[30px] rounded-full"></div></div>
                             {isOOS && <div className="absolute inset-0 bg-white/70 z-20 flex items-center justify-center backdrop-blur-[2px]"><span className="bg-red-50 text-red-600 text-[9px] font-bold px-3 py-1.5 rounded-full uppercase tracking-[0.15em] border border-red-200">Out Of Stock</span></div>}
-                            <CloudinaryImage src={prod.image || prod.images?.[0]} alt={prod.name} className="w-full h-full object-contain relative z-10" width={200} />
+                            <CloudinaryImage src={prod.image || prod.images?.[0]} alt={prod.name} className="w-full h-full object-cover relative z-10" width={200} />
                             
                             {/* Selection Checkbox */}
                             {!isOOS && (
@@ -375,7 +405,54 @@ export default function ComboPage() {
                                </div>
                             )}
                          </div>
-                         <div className="p-3 text-center bg-white border-t border-[#eeeeee]">
+                         
+                         {/* Info Button with Tooltip */}
+                         <div 
+                            className="absolute top-3 left-3 z-30 group cursor-pointer" 
+                            onClick={(e) => {
+                               e.stopPropagation();
+                               setActiveNoteId(activeNoteId === prod._id ? null : prod._id);
+                            }}
+                         >
+                            <div className="bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full p-1.5 shadow-sm hover:bg-gray-50 flex items-center gap-1.5 transition-all">
+                               <Info className="w-4 h-4 text-[#C9A96E]" />
+                               <span className="text-[10px] font-bold text-gray-600 pr-1 tracking-wide hidden md:block">Hover to see notes</span>
+                            </div>
+                            
+                            {/* Notes Tooltip */}
+                            <div className={`absolute top-full mt-2 w-[180px] sm:w-48 bg-white border border-gray-200 rounded-xl shadow-2xl p-3 transition-all duration-200 z-[100] ${tooltipPositionClass} ${activeNoteId === prod._id ? 'opacity-100 visible scale-100 pointer-events-auto' : 'opacity-0 invisible scale-95 pointer-events-none md:group-hover:opacity-100 md:group-hover:visible md:group-hover:scale-100'}`}>
+                               {(prod.topNotes && prod.topNotes.length > 0) || (prod.notes && prod.notes.top) ? (
+                                  <div className="mb-2 last:mb-0">
+                                     <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-0.5">Top Notes</p>
+                                     <p className="text-xs text-gray-700 leading-tight">
+                                        {prod.topNotes?.length ? prod.topNotes.join(', ') : prod.notes?.top}
+                                     </p>
+                                  </div>
+                               ) : null}
+                               {(prod.midNotes && prod.midNotes.length > 0) || (prod.notes && prod.notes.middle) ? (
+                                  <div className="mb-2 last:mb-0">
+                                     <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-0.5">Middle Notes</p>
+                                     <p className="text-xs text-gray-700 leading-tight">
+                                        {prod.midNotes?.length ? prod.midNotes.join(', ') : prod.notes?.middle}
+                                     </p>
+                                  </div>
+                               ) : null}
+                               {(prod.baseNotes && prod.baseNotes.length > 0) || (prod.notes && prod.notes.base) ? (
+                                  <div className="mb-2 last:mb-0">
+                                     <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-0.5">Base Notes</p>
+                                     <p className="text-xs text-gray-700 leading-tight">
+                                        {prod.baseNotes?.length ? prod.baseNotes.join(', ') : prod.notes?.base}
+                                     </p>
+                                  </div>
+                               ) : null}
+                               
+                               {!prod.topNotes?.length && !prod.notes?.top && !prod.midNotes?.length && !prod.notes?.middle && !prod.baseNotes?.length && !prod.notes?.base && (
+                                  <p className="text-xs text-gray-500 italic">No notes available.</p>
+                               )}
+                            </div>
+                         </div>
+
+                         <div className="p-3 text-center bg-white border-t border-[#eeeeee] rounded-b-2xl">
                             <p className="text-[9px] uppercase tracking-[0.2em] text-[#777777] font-medium">{prod.category || 'Perfume'}</p>
                             <h3 className="font-semibold text-sm line-clamp-1 text-[#111111] leading-tight">{prod.name}</h3>
                          </div>

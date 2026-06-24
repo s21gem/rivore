@@ -3,10 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, Minus, Plus, ShoppingBag, ArrowRight } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
+import { useCustomerAuthStore } from '../store/customerAuthStore';
 import { toast } from 'sonner';
 
 export default function CartSidebar() {
   const { items, removeItem, updateQuantity, getTotal, isCartOpen, setCartOpen } = useCartStore();
+  const { user } = useCustomerAuthStore();
   const navigate = useNavigate();
 
   // Disable body scroll when cart is open
@@ -28,7 +30,11 @@ export default function CartSidebar() {
 
   const handleCheckout = () => {
     setCartOpen(false);
-    navigate('/checkout');
+    if (user) {
+      navigate('/checkout');
+    } else {
+      navigate('/checkout-auth');
+    }
   };
 
   return (

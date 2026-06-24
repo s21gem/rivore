@@ -47,7 +47,7 @@ export default function AdminLayout() {
       {/* Sidebar */}
       <aside className={`fixed inset-y-0 left-0 w-64 bg-card border-r border-border flex flex-col z-50 transform transition-transform duration-300 md:relative md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="h-24 flex items-center justify-between px-8 border-b border-border">
-          <img src="https://res.cloudinary.com/dum9idrbx/image/upload/q_auto/f_auto/v1776089332/Rivor%C3%A9_fhepjw.png" alt="Rivore" className="h-8 w-auto" />
+          <img src="https://res.cloudinary.com/dum9idrbx/image/upload/q_auto/f_auto/v1776089332/Rivor%C3%A9_fhepjw.png" alt="Rivoré" className="h-8 w-auto" />
           <button 
             className="md:hidden text-muted-foreground hover:text-foreground"
             onClick={() => setIsSidebarOpen(false)}

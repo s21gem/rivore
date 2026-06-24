@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../store/authStore';
-import { CreditCard, Save, Lock, Zap, CheckCircle2, XCircle, Trash2, Webhook, RefreshCw } from 'lucide-react';
+import { CreditCard, Save, Lock, Zap, CheckCircle2, XCircle, Trash2, Webhook, RefreshCw, Loader2 } from 'lucide-react';
 import Loader from '../../components/Loader';
 
 export default function PaymentMethods() {
@@ -101,7 +101,7 @@ export default function PaymentMethods() {
           disabled={saving}
           className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl font-medium hover:bg-primary/90 transition-all flex items-center gap-2 shadow-lg disabled:opacity-50"
         >
-          {saving ? <Loader className="w-4 h-4 border-2" /> : <Save className="w-4 h-4" />}
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {saving ? 'Saving...' : 'Save Settings'}
         </button>
       </div>

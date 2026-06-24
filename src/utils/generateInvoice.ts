@@ -15,7 +15,7 @@ const DEFAULT_SETTINGS: InvoiceSettings = {
   invoiceAddress: 'Dhaka, Bangladesh',
   invoicePhone: '',
   invoiceEmail: 'contact@rivore.com',
-  invoiceFooter: 'Thank you for choosing Rivore. Crafted with Elegance.',
+  invoiceFooter: 'Thank you for choosing Rivoré. Crafted with Elegance.',
   invoiceLogo: 'https://res.cloudinary.com/dum9idrbx/image/upload/f_png/q_80/v1776089332/Rivor%C3%A9_fhepjw.png',
 };
 
@@ -26,21 +26,28 @@ function forcePngUrl(url: string): string {
   return url.replace(/f_auto/g, 'f_png').replace(/f_webp/g, 'f_png');
 }
 
-// Fetch image and convert to base64 data URL for PDF embedding
+// Fetch image and convert to base64 PNG using Canvas
 async function fetchImageAsBase64(url: string): Promise<string | null> {
-  try {
-    const pngUrl = forcePngUrl(url);
-    const res = await fetch(pngUrl);
-    const blob = await res.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
+  if (!url) return null;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve(null);
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } catch (e) {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = forcePngUrl(url);
+  });
 }
 
 function formatDate(dateStr: string): string {

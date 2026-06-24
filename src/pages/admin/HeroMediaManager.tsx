@@ -1,8 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Trash2, Edit, Image as ImageIcon, Video, Link as LinkIcon, Save, MoveUp, MoveDown, Check, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuthStore } from '../../store/authStore';
+
+const getVideoEmbedUrl = (url: string) => {
+  if (!url) return { url: null, isIframe: false };
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
+  if (match) return { url: `https://www.youtube.com/embed/${match[1]}?autoplay=1&mute=1&loop=1&controls=0`, isIframe: true };
+  const vMatch = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (vMatch) return { url: `https://player.vimeo.com/video/${vMatch[1]}?background=1&autoplay=1&loop=1&muted=1`, isIframe: true };
+  const tMatch = url.match(/video\/(\d+)/);
+  if (tMatch) return { url: `https://www.tiktok.com/embed/v2/${tMatch[1]}`, isIframe: true };
+  const gMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (gMatch) return { url: `https://drive.google.com/file/d/${gMatch[1]}/preview`, isIframe: true };
+  return { url: url, isIframe: false }; // Fallback for direct MP4/WebM URLs
+};
 
 export default function HeroMediaManager() {
+  const { token, logout } = useAuthStore();
+  const activeToken = token || localStorage.getItem('token');
   const [mediaList, setMediaList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState<any>(null);
@@ -11,8 +27,13 @@ export default function HeroMediaManager() {
   const fetchMedia = async () => {
     try {
       const res = await fetch('/api/heroMedia', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` }
+        headers: { Authorization: `Bearer ${activeToken}` }
       });
+      if (res.status === 401) {
+        logout();
+        window.location.href = '/admin/login';
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setMediaList(data);
@@ -30,6 +51,17 @@ export default function HeroMediaManager() {
 
   const handleSave = async (media: any) => {
     try {
+      // Sync legacy fields
+      media.title = media.headline !== undefined ? media.headline : media.title;
+      media.subtitle = media.subheadline !== undefined ? media.subheadline : media.subtitle;
+      media.buttonText = media.ctaText !== undefined ? media.ctaText : media.buttonText;
+      media.buttonLink = media.ctaLink !== undefined ? media.ctaLink : media.buttonLink;
+      
+      // Default to type 'image' unless video exists
+      if (media.videoFile) media.type = 'video_upload';
+      else if (media.videoUrl) media.type = 'video_url';
+      else media.type = 'image';
+
       const isNew = !media._id;
       const url = isNew ? '/api/heroMedia' : `/api/heroMedia/${media._id}`;
       const method = isNew ? 'POST' : 'PUT';
@@ -38,10 +70,16 @@ export default function HeroMediaManager() {
         method,
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('admin_token')}`
+          Authorization: `Bearer ${activeToken}`
         },
         body: JSON.stringify(media)
       });
+
+      if (res.status === 401) {
+        logout();
+        window.location.href = '/admin/login';
+        return;
+      }
 
       if (res.ok) {
         toast.success(isNew ? 'Slide created' : 'Slide updated');
@@ -61,8 +99,13 @@ export default function HeroMediaManager() {
     try {
       const res = await fetch(`/api/heroMedia/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` }
+        headers: { Authorization: `Bearer ${activeToken}` }
       });
+      if (res.status === 401) {
+        logout();
+        window.location.href = '/admin/login';
+        return;
+      }
       if (res.ok) {
         toast.success('Deleted successfully');
         fetchMedia();
@@ -72,7 +115,7 @@ export default function HeroMediaManager() {
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: 'mediaUrl' | 'thumbnail') => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
     setUploading(true);
@@ -83,9 +126,14 @@ export default function HeroMediaManager() {
     try {
       const res = await fetch('/api/upload', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${localStorage.getItem('admin_token')}` },
+        headers: { Authorization: `Bearer ${activeToken}` },
         body: formData
       });
+      if (res.status === 401) {
+        logout();
+        window.location.href = '/admin/login';
+        return;
+      }
       if (res.ok) {
         const data = await res.json();
         setIsEditing({ ...isEditing, [field]: data.url });
@@ -123,11 +171,11 @@ export default function HeroMediaManager() {
 
     // Save to DB
     try {
-      await fetch('/api/heroMedia/reorder', {
+      const res = await fetch('/api/heroMedia/reorder', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('admin_token')}`
+          Authorization: `Bearer ${activeToken}`
         },
         body: JSON.stringify({
           items: [
@@ -136,7 +184,12 @@ export default function HeroMediaManager() {
           ]
         })
       });
-    } catch (err) {
+      if (res.status === 401) {
+        logout();
+        window.location.href = '/admin/login';
+        return;
+      }
+    } catch (error) {
       toast.error('Failed to reorder in database');
     }
   };
@@ -151,7 +204,11 @@ export default function HeroMediaManager() {
           <p className="text-muted-foreground mt-1">Manage homepage carousel images and videos.</p>
         </div>
         <button
-          onClick={() => setIsEditing({ type: 'image', isActive: true, sortOrder: mediaList.length, autoplay: true, loop: true, muted: true, controls: false })}
+          onClick={() => setIsEditing({ 
+            type: 'image', isActive: true, sortOrder: mediaList.length, autoplay: true, loop: true, muted: true, controls: false,
+            desktopImageUrl: '', mobileImageUrl: '', videoFile: '', videoUrl: '',
+            headline: '', subheadline: '', ctaText: '', ctaLink: ''
+          })}
           className="bg-primary text-primary-foreground px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-primary/90 transition-colors"
         >
           <Plus className="w-5 h-5" /> Add New Slide
@@ -164,99 +221,119 @@ export default function HeroMediaManager() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
+              <div className="mb-3 p-3 bg-blue-50/50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-800 leading-relaxed">
+                  <span className="font-bold text-blue-900">⚠️ New Unified Hero:</span> You can now upload both an image and a video. The image will act as a lightning-fast poster before the video loads.
+                </p>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium mb-1">Media Type</label>
+                <label className="block text-sm font-medium mb-1">Desktop Image (Required) <span className="text-xs text-muted-foreground">Acts as fallback/poster</span></label>
                 <div className="flex gap-2">
-                  <button onClick={() => setIsEditing({ ...isEditing, type: 'image' })} className={`flex-1 py-2 rounded flex items-center justify-center gap-2 border ${isEditing.type === 'image' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}><ImageIcon className="w-4 h-4"/> Image</button>
-                  <button onClick={() => setIsEditing({ ...isEditing, type: 'video_upload' })} className={`flex-1 py-2 rounded flex items-center justify-center gap-2 border ${isEditing.type === 'video_upload' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}><Video className="w-4 h-4"/> Video Upload</button>
-                  <button onClick={() => setIsEditing({ ...isEditing, type: 'video_url' })} className={`flex-1 py-2 rounded flex items-center justify-center gap-2 border ${isEditing.type === 'video_url' ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'}`}><LinkIcon className="w-4 h-4"/> Video URL</button>
+                  <input type="text" value={isEditing.desktopImageUrl !== undefined ? isEditing.desktopImageUrl : (isEditing.mediaUrl || '')} onChange={(e) => setIsEditing({ ...isEditing, desktopImageUrl: e.target.value })} className="flex-1 bg-background border border-input rounded-md px-3 py-2" placeholder="Image URL" />
+                  <label className="bg-muted px-4 py-2 rounded-md border border-input cursor-pointer hover:bg-muted/80 flex items-center">
+                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Upload'}
+                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'desktopImageUrl')} disabled={uploading} />
+                  </label>
                 </div>
               </div>
 
-              {isEditing.type === 'video_url' ? (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Video URL (YouTube, Vimeo, etc)</label>
-                  <input type="text" value={isEditing.mediaUrl || ''} onChange={(e) => setIsEditing({ ...isEditing, mediaUrl: e.target.value })} className="w-full bg-background border border-input rounded-md px-3 py-2" placeholder="https://youtube.com/watch?v=..." />
+              <div>
+                <label className="block text-sm font-medium mb-1">Mobile Image (Optional) <span className="text-xs text-muted-foreground">Optimized for phones</span></label>
+                <div className="flex gap-2">
+                  <input type="text" value={isEditing.mobileImageUrl !== undefined ? isEditing.mobileImageUrl : (isEditing.thumbnail || '')} onChange={(e) => setIsEditing({ ...isEditing, mobileImageUrl: e.target.value })} className="flex-1 bg-background border border-input rounded-md px-3 py-2" placeholder="Mobile Image URL" />
+                  <label className="bg-muted px-4 py-2 rounded-md border border-input cursor-pointer hover:bg-muted/80 flex items-center">
+                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Upload'}
+                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'mobileImageUrl')} disabled={uploading} />
+                  </label>
                 </div>
-              ) : (
-                <div>
-                  <label className="block text-sm font-medium mb-1">{isEditing.type === 'image' ? 'Upload Image' : 'Upload Video (Max 200MB)'}</label>
-                  <div className="flex gap-2">
-                    <input type="text" value={isEditing.mediaUrl || ''} onChange={(e) => setIsEditing({ ...isEditing, mediaUrl: e.target.value })} className="flex-1 bg-background border border-input rounded-md px-3 py-2" placeholder="URL will appear here" />
-                    <label className="bg-muted px-4 py-2 rounded-md border border-input cursor-pointer hover:bg-muted/80 flex items-center">
-                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Upload'}
-                      <input type="file" className="hidden" accept={isEditing.type === 'image' ? 'image/*' : 'video/*'} onChange={(e) => handleFileUpload(e, 'mediaUrl')} disabled={uploading} />
-                    </label>
-                  </div>
-                </div>
-              )}
+              </div>
 
-              {(isEditing.type === 'video_upload' || isEditing.type === 'video_url') && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Mobile Poster/Thumbnail (Optional)</label>
-                  <div className="flex gap-2">
-                    <input type="text" value={isEditing.thumbnail || ''} onChange={(e) => setIsEditing({ ...isEditing, thumbnail: e.target.value })} className="flex-1 bg-background border border-input rounded-md px-3 py-2" placeholder="Image URL to show before video plays" />
-                    <label className="bg-muted px-4 py-2 rounded-md border border-input cursor-pointer hover:bg-muted/80 flex items-center">
-                      {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Upload'}
-                      <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'thumbnail')} disabled={uploading} />
-                    </label>
-                  </div>
+              <div className="pt-4 border-t border-border">
+                <label className="block text-sm font-medium mb-1">Video Upload (Optional)</label>
+                <div className="flex gap-2">
+                  <input type="text" value={isEditing.videoFile || ''} onChange={(e) => setIsEditing({ ...isEditing, videoFile: e.target.value })} className="flex-1 bg-background border border-input rounded-md px-3 py-2" placeholder="Video URL" />
+                  <label className="bg-muted px-4 py-2 rounded-md border border-input cursor-pointer hover:bg-muted/80 flex items-center">
+                    {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Upload'}
+                    <input type="file" className="hidden" accept="video/*" onChange={(e) => handleFileUpload(e, 'videoFile')} disabled={uploading} />
+                  </label>
                 </div>
-              )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Video URL (YouTube, Vimeo, Google Drive)</label>
+                <input type="text" value={isEditing.videoUrl || ''} onChange={(e) => setIsEditing({ ...isEditing, videoUrl: e.target.value })} className="w-full bg-background border border-input rounded-md px-3 py-2" placeholder="https://youtube.com/watch?v=..." />
+              </div>
 
               <div className="space-y-4 pt-4 border-t border-border">
                 <h4 className="font-medium">Overlay Content (Optional)</h4>
                 <div>
                   <label className="block text-sm font-medium mb-1">Headline</label>
-                  <input type="text" value={isEditing.title || ''} onChange={(e) => setIsEditing({ ...isEditing, title: e.target.value })} className="w-full bg-background border border-input rounded-md px-3 py-2" placeholder="e.g. The New Collection" />
+                  <input type="text" value={isEditing.headline !== undefined ? isEditing.headline : (isEditing.title || '')} onChange={(e) => setIsEditing({ ...isEditing, headline: e.target.value })} className="w-full bg-background border border-input rounded-md px-3 py-2" placeholder="e.g. The New Collection" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1">Subheadline</label>
-                  <input type="text" value={isEditing.subtitle || ''} onChange={(e) => setIsEditing({ ...isEditing, subtitle: e.target.value })} className="w-full bg-background border border-input rounded-md px-3 py-2" placeholder="e.g. Discover the essence of luxury." />
+                  <input type="text" value={isEditing.subheadline !== undefined ? isEditing.subheadline : (isEditing.subtitle || '')} onChange={(e) => setIsEditing({ ...isEditing, subheadline: e.target.value })} className="w-full bg-background border border-input rounded-md px-3 py-2" placeholder="e.g. Discover the essence of luxury." />
                 </div>
                 <div className="flex gap-4">
                   <div className="flex-1">
                     <label className="block text-sm font-medium mb-1">Button Text</label>
-                    <input type="text" value={isEditing.buttonText || ''} onChange={(e) => setIsEditing({ ...isEditing, buttonText: e.target.value })} className="w-full bg-background border border-input rounded-md px-3 py-2" placeholder="e.g. Shop Now" />
+                    <input type="text" value={isEditing.ctaText !== undefined ? isEditing.ctaText : (isEditing.buttonText || '')} onChange={(e) => setIsEditing({ ...isEditing, ctaText: e.target.value })} className="w-full bg-background border border-input rounded-md px-3 py-2" placeholder="e.g. Shop Now" />
                   </div>
                   <div className="flex-1">
                     <label className="block text-sm font-medium mb-1">Button Link</label>
-                    <input type="text" value={isEditing.buttonLink || ''} onChange={(e) => setIsEditing({ ...isEditing, buttonLink: e.target.value })} className="w-full bg-background border border-input rounded-md px-3 py-2" placeholder="e.g. /shop" />
+                    <input type="text" value={isEditing.ctaLink !== undefined ? isEditing.ctaLink : (isEditing.buttonLink || '')} onChange={(e) => setIsEditing({ ...isEditing, ctaLink: e.target.value })} className="w-full bg-background border border-input rounded-md px-3 py-2" placeholder="e.g. /shop" />
                   </div>
                 </div>
               </div>
-
             </div>
 
             <div className="space-y-4">
               <h4 className="font-medium">Preview</h4>
               <div className="aspect-[16/9] bg-black rounded-xl overflow-hidden relative border border-border">
-                {isEditing.mediaUrl ? (
-                  isEditing.type === 'image' ? (
-                    <img src={isEditing.mediaUrl} alt="Preview" className="w-full h-full object-cover" />
-                  ) : isEditing.type === 'video_upload' ? (
-                    <video src={isEditing.mediaUrl} autoPlay loop muted className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gray-900 text-white flex-col gap-2">
-                      <LinkIcon className="w-8 h-8 opacity-50" />
-                      <span className="text-sm opacity-50">Video URL Preview Unavailable in Editor</span>
-                    </div>
-                  )
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">No media selected</div>
+                {/* Fallback Image */}
+                {(isEditing.desktopImageUrl || isEditing.mediaUrl) && (
+                  <img src={isEditing.desktopImageUrl || isEditing.mediaUrl} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
+                )}
+                
+                {/* Video Layer */}
+                {(isEditing.videoFile || isEditing.videoUrl) && (
+                  <div className="absolute inset-0 w-full h-full">
+                    {isEditing.videoFile ? (
+                      <video src={isEditing.videoFile} autoPlay={isEditing.autoplay} loop={isEditing.loop} muted={isEditing.muted} className="w-full h-full object-cover" />
+                    ) : (
+                      (() => {
+                        const embed = getVideoEmbedUrl(isEditing.videoUrl);
+                        if (!embed.url) return (
+                          <div className="w-full h-full flex items-center justify-center bg-black/80 text-white flex-col gap-2 relative z-20">
+                            <LinkIcon className="w-8 h-8 opacity-50" />
+                            <span className="text-sm opacity-50">Invalid or Unsupported Video URL</span>
+                          </div>
+                        );
+                        if (embed.isIframe) {
+                          return (
+                            <div className="w-full h-full pointer-events-none overflow-hidden scale-[1.3] relative z-10">
+                              <iframe src={embed.url} className="w-full h-full" allow="autoplay; fullscreen" frameBorder="0" />
+                            </div>
+                          );
+                        } else {
+                          return <video src={embed.url} autoPlay={isEditing.autoplay} loop={isEditing.loop} muted={isEditing.muted} playsInline className="w-full h-full object-cover relative z-10" />;
+                        }
+                      })()
+                    )}
+                  </div>
                 )}
                 
                 {/* Overlay Preview */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col justify-end p-6 text-white">
-                  {isEditing.title && <h3 className="text-2xl font-serif font-bold mb-1">{isEditing.title}</h3>}
-                  {isEditing.subtitle && <p className="text-sm opacity-80 mb-4">{isEditing.subtitle}</p>}
-                  {isEditing.buttonText && <div className="bg-white text-black px-6 py-2 rounded-md font-medium inline-block self-start text-sm">{isEditing.buttonText}</div>}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col justify-end p-6 text-white z-30">
+                  {(isEditing.headline || isEditing.title) && <h3 className="text-2xl font-serif font-bold mb-1">{isEditing.headline || isEditing.title}</h3>}
+                  {(isEditing.subheadline || isEditing.subtitle) && <p className="text-sm opacity-80 mb-4">{isEditing.subheadline || isEditing.subtitle}</p>}
+                  {(isEditing.ctaText || isEditing.buttonText) && <div className="bg-white text-black px-6 py-2 rounded-md font-medium inline-block self-start text-sm">{isEditing.ctaText || isEditing.buttonText}</div>}
                 </div>
               </div>
 
-              {(isEditing.type === 'video_upload' || isEditing.type === 'video_url') && (
-                <div className="bg-muted p-4 rounded-xl mt-4">
-                  <h4 className="font-medium mb-3">Video Settings</h4>
+              <div className="bg-muted p-4 rounded-xl mt-4">
+                <h4 className="font-medium mb-3">Video Settings</h4>
                   <div className="grid grid-cols-2 gap-3">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input type="checkbox" checked={isEditing.autoplay} onChange={(e) => setIsEditing({ ...isEditing, autoplay: e.target.checked })} /> Autoplay
@@ -272,8 +349,6 @@ export default function HeroMediaManager() {
                     </label>
                   </div>
                 </div>
-              )}
-
               <div className="bg-muted p-4 rounded-xl mt-4">
                 <label className="flex items-center gap-2 cursor-pointer font-medium">
                   <input type="checkbox" checked={isEditing.isActive} onChange={(e) => setIsEditing({ ...isEditing, isActive: e.target.checked })} className="w-4 h-4" /> 
@@ -297,18 +372,23 @@ export default function HeroMediaManager() {
             mediaList.map((media, index) => (
               <div key={media._id} className="bg-card border border-border rounded-xl p-4 flex items-center gap-6 shadow-sm">
                 <div className="w-32 h-20 bg-muted rounded overflow-hidden flex-shrink-0 relative">
-                  {media.type === 'image' && <img src={media.mediaUrl} alt="Thumbnail" className="w-full h-full object-cover" />}
-                  {media.type === 'video_upload' && (media.thumbnail ? <img src={media.thumbnail} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center bg-black"><Video className="text-white opacity-50 w-6 h-6"/></div>)}
-                  {media.type === 'video_url' && <div className="w-full h-full flex items-center justify-center bg-black"><LinkIcon className="text-white opacity-50 w-6 h-6"/></div>}
-                  {!media.isActive && <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-xs font-bold text-white uppercase tracking-wider">Hidden</div>}
+                  {(media.desktopImageUrl || media.mediaUrl) && <img src={media.desktopImageUrl || media.mediaUrl} alt="Thumbnail" className="absolute inset-0 w-full h-full object-cover z-0" />}
+                  {(media.videoFile || media.videoUrl) && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/40">
+                      <Video className="text-white opacity-80 w-6 h-6"/>
+                    </div>
+                  )}
+                  {!media.isActive && <div className="absolute inset-0 z-20 bg-black/60 flex items-center justify-center text-xs font-bold text-white uppercase tracking-wider">Hidden</div>}
                 </div>
                 
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs uppercase tracking-wider font-bold bg-muted px-2 py-1 rounded text-muted-foreground">{media.type.replace('_', ' ')}</span>
+                    <span className="text-xs uppercase tracking-wider font-bold bg-muted px-2 py-1 rounded text-muted-foreground">
+                      {(media.videoFile || media.videoUrl) ? 'VIDEO & IMAGE' : 'IMAGE ONLY'}
+                    </span>
                   </div>
-                  {media.title && <h3 className="font-serif font-bold text-lg">{media.title}</h3>}
-                  <p className="text-xs text-muted-foreground truncate max-w-md">{media.mediaUrl}</p>
+                  {(media.headline || media.title) && <h3 className="font-serif font-bold text-lg">{media.headline || media.title}</h3>}
+                  <p className="text-xs text-muted-foreground truncate max-w-md">{media.desktopImageUrl || media.mediaUrl}</p>
                 </div>
 
                 <div className="flex flex-col gap-1">

@@ -24,7 +24,7 @@ export default function ReturnPolicy() {
           </motion.h1>
         </div>
 
-        {/* The Rivore Promise */}
+        {/* The Rivoré Promise */}
         <motion.section 
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -34,7 +34,7 @@ export default function ReturnPolicy() {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/5 text-primary mb-6">
             <ShieldCheck className="w-8 h-8 stroke-[1.5]" />
           </div>
-          <h2 className="text-2xl md:text-3xl font-serif font-light text-foreground mb-6">The Rivore Promise</h2>
+          <h2 className="text-2xl md:text-3xl font-serif font-light text-foreground mb-6">The Rivoré Promise</h2>
           <p className="text-lg font-light text-muted-foreground leading-relaxed max-w-2xl mx-auto">
             We craft every fragrance with uncompromising dedication to quality and elegance. 
             If your experience falls short of extraordinary, we are committed to making it right. 

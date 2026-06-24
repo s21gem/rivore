@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../../store/authStore';
 import { Plus, Trash2, X, Upload, Save, ChevronDown, Shield, Lock, Mail, Eye, EyeOff, Award } from 'lucide-react';
 import Loader from '../../components/Loader';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 const ICON_OPTIONS = [
   'Clock', 'Sparkles', 'Gem', 'Heart', 'Star', 'Shield', 'Award', 'Zap',
@@ -13,6 +16,7 @@ const TABS = [
   { id: 'general', label: 'General' },
   { id: 'branding', label: 'Branding' },
   { id: 'homepage', label: 'Homepage CMS' },
+  { id: 'discounted', label: 'Discounted Perfumes' },
   { id: 'store', label: 'Store Location' },
   { id: 'contact', label: 'Contact Page' },
   { id: 'categories', label: 'Categories & Filters' },
@@ -25,6 +29,119 @@ const TABS = [
   { id: 'social', label: 'Social Links' },
   { id: 'security', label: '🔐 Security' },
 ];
+
+const SortableSignatureItem = ({ sp, i, allProducts, handleSignatureImageUpload, updateSignatureProduct, removeSignatureProduct }: any) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sp._id || `sig-${i}` });
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : 1, position: isDragging ? 'relative' as any : 'static' as any };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`flex flex-col sm:flex-row gap-4 bg-muted/20 p-4 rounded-xl border border-border ${isDragging ? 'shadow-lg opacity-80' : ''}`}>
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-primary p-2 flex items-center justify-center shrink-0">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line></svg>
+      </div>
+      <div className="shrink-0 flex flex-col items-center justify-start pt-1">
+        <label className="cursor-pointer group relative block w-24 h-[120px] rounded-lg overflow-hidden border border-border bg-white shadow-sm flex items-center justify-center">
+          <input type="file" className="hidden" accept="image/*" onChange={(e) => handleSignatureImageUpload(e, i)} />
+          {sp.image ? (
+            <img src={sp.image} alt="Signature item" className="w-full h-full object-cover group-hover:opacity-75 transition-opacity" />
+          ) : (
+            <div className="text-center p-2 flex flex-col items-center">
+              <Upload className="w-5 h-5 text-muted-foreground mb-1" />
+              <span className="text-[10px] text-muted-foreground leading-tight">Upload Image</span>
+            </div>
+          )}
+        </label>
+        <span className="text-[9px] text-muted-foreground/80 italic text-center mt-2 max-w-[96px]">Recommended: 1080x1080px (1:1 Square)</span>
+      </div>
+
+      <div className="flex-1 flex flex-col gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Product</label>
+            <select
+              value={sp.productId}
+              onChange={(e) => updateSignatureProduct(i, 'productId', e.target.value)}
+              className="w-full px-3 py-2.5 rounded-lg border border-border outline-none text-sm bg-background"
+            >
+              <option value="">Select a product</option>
+              {allProducts.map((p: any) => (
+                <option key={p._id} value={p._id}>{p.name} ({p.category})</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Tagline</label>
+            <input type="text" value={sp.tagline} onChange={(e) => updateSignatureProduct(i, 'tagline', e.target.value)} placeholder="e.g. The Essence of Spring" className="w-full px-3 py-2.5 rounded-lg border border-border outline-none text-sm" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-muted-foreground mb-1.5 flex justify-between">
+            <span>Custom Description Override</span>
+            <span className={`${sp.customDescription?.length > 140 ? 'text-amber-500' : 'text-muted-foreground'}`}>{sp.customDescription?.length || 0}/150</span>
+          </label>
+          <textarea
+            value={sp.customDescription || ''}
+            onChange={(e) => updateSignatureProduct(i, 'customDescription', e.target.value)}
+            placeholder="Short description to keep layout uniform (Max 150 chars)..."
+            maxLength={150}
+            rows={2}
+            className="w-full px-3 py-2.5 rounded-lg border border-border outline-none text-sm resize-none"
+          />
+        </div>
+      </div>
+      
+      <button type="button" onClick={() => removeSignatureProduct(i)} className="text-red-500 hover:text-red-700 self-end sm:self-center p-2"><Trash2 className="w-4 h-4" /></button>
+    </div>
+  );
+};
+
+const SortableBestSellerItem = ({ item, i, allProducts, handleBestSellerImageUpload, updateBestSellerItem, removeBestSellerItem }: any) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item._id || `bs-${i}` });
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 10 : 1, position: isDragging ? 'relative' as any : 'static' as any };
+
+  return (
+    <div ref={setNodeRef} style={style} className={`flex flex-col sm:flex-row gap-4 bg-muted/20 p-4 rounded-xl border border-border ${isDragging ? 'shadow-lg opacity-80' : ''}`}>
+      <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-primary p-2 flex items-center justify-center shrink-0">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line></svg>
+      </div>
+      <div className="shrink-0 flex items-center justify-center">
+        <label className="cursor-pointer group relative block w-20 h-28 rounded-lg overflow-hidden border border-border bg-white shadow-sm flex items-center justify-center">
+          <input type="file" className="hidden" accept="image/*" onChange={(e) => handleBestSellerImageUpload(e, i)} />
+          {item.image ? (
+            <img src={item.image} alt="Slider item" className="w-full h-full object-cover group-hover:opacity-75 transition-opacity" />
+          ) : (
+            <div className="text-center p-2 flex flex-col items-center">
+              <Upload className="w-5 h-5 text-muted-foreground mb-1" />
+              <span className="text-[10px] text-muted-foreground">Upload</span>
+            </div>
+          )}
+        </label>
+      </div>
+
+      <div className="flex-1 flex flex-col gap-3">
+        <div>
+          <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Link Buy Now to Product</label>
+          <select
+            value={item.productId}
+            onChange={(e) => updateBestSellerItem(i, 'productId', e.target.value)}
+            className="w-full px-3 py-2.5 rounded-lg border border-border outline-none text-sm bg-background"
+          >
+            <option value="">Select a product (Optional)</option>
+            {allProducts.map((p: any) => (
+              <option key={p._id} value={p._id}>{p.name}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Title Overlay (Optional)</label>
+          <input type="text" value={item.title} onChange={(e) => updateBestSellerItem(i, 'title', e.target.value)} placeholder="e.g. Summer Edition" className="w-full px-3 py-2.5 rounded-lg border border-border outline-none text-sm" />
+        </div>
+      </div>
+      
+      <button type="button" onClick={() => removeBestSellerItem(i)} className="text-red-500 hover:text-red-700 self-end sm:self-center p-2"><Trash2 className="w-4 h-4" /></button>
+    </div>
+  );
+};
 
 // ========== Security Credential Change Component ==========
 function SecurityCredentialSection({ token }: { token: string | null }) {
@@ -370,9 +487,43 @@ function TurnstileSettingsSection({ settings, setSettings }: { settings: any; se
 export default function Settings() {
   const { token } = useAuthStore();
   const [activeTab, setActiveTab] = useState('general');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleSignatureDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = settings.signatureProducts.findIndex((p: any) => (p._id) === active.id);
+    const newIndex = settings.signatureProducts.findIndex((p: any) => (p._id) === over.id);
+
+    setSettings((prev: any) => ({
+      ...prev,
+      signatureProducts: arrayMove(prev.signatureProducts, oldIndex, newIndex)
+    }));
+  };
+
+  const handleBestSellerDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = settings.bestSellerSliderItems.findIndex((p: any) => (p._id) === active.id);
+    const newIndex = settings.bestSellerSliderItems.findIndex((p: any) => (p._id) === over.id);
+
+    setSettings((prev: any) => ({
+      ...prev,
+      bestSellerSliderItems: arrayMove(prev.bestSellerSliderItems, oldIndex, newIndex)
+    }));
+  };
   const [settings, setSettings] = useState<any>({
     metaPixelId: '',
-    storeName: '',
+    metaConversionApiToken: '',
+    storeName: 'Rivoré',
     shippingCharge: 0,
     contactEmail: '',
     contactPhone: '',
@@ -393,8 +544,8 @@ export default function Settings() {
     // CMS fields
     bannerEnabled: true,
     bannerMessages: ['Free Shipping on orders over ৳5000', 'Visit our new flagship store at Banani', 'Use code RIVORE10 for 10% off', 'Luxury Fragrances Reimagined'],
-    signatureProducts: [] as { productId: string; tagline: string }[],
-    bestSellerSliderItems: [] as { image: string; productId: string; title: string }[],
+    signatureProducts: [] as { productId: string; tagline: string; _id: string }[],
+    bestSellerSliderItems: [] as { image: string; productId: string; title: string; _id: string }[],
     whyRivoreItems: [] as { icon: string; title: string; description: string }[],
     storeLocationName: 'RIVORÉ Flagship Store',
     storeLocationAddress: 'House 50, Road 11\nBlock F, Banani\nDhaka 1213, Bangladesh',
@@ -436,6 +587,10 @@ export default function Settings() {
   const logoWhiteRef = useRef<HTMLInputElement>(null);
   const notesImgRef = useRef<HTMLInputElement>(null);
   const storeImgRef = useRef<HTMLInputElement>(null);
+  const [uploadingDiscountDesktop, setUploadingDiscountDesktop] = useState(false);
+  const [uploadingDiscountMobile, setUploadingDiscountMobile] = useState(false);
+  const discountDesktopRef = useRef<HTMLInputElement>(null);
+  const discountMobileRef = useRef<HTMLInputElement>(null);
 
   const [newCategory, setNewCategory] = useState('');
   const [newFilterName, setNewFilterName] = useState('');
@@ -458,8 +613,8 @@ export default function Settings() {
             filters: data.filters || [],
             bannerMessages: data.bannerMessages || prev.bannerMessages,
             heroImages: data.heroImages || (data.heroImage ? [data.heroImage] : []),
-            signatureProducts: data.signatureProducts || [],
-            bestSellerSliderItems: data.bestSellerSliderItems || [],
+            signatureProducts: (data.signatureProducts || []).map((sp: any, i: number) => ({...sp, _id: sp._id || `sig-${Date.now()}-${i}`})),
+            bestSellerSliderItems: (data.bestSellerSliderItems || []).map((bs: any, i: number) => ({...bs, _id: bs._id || `bs-${Date.now()}-${i}`})),
             whyRivoreItems: data.whyRivoreItems || [],
             paymentBkash: { ...prev.paymentBkash, ...data.paymentBkash },
             paymentSslCommerz: { ...prev.paymentSslCommerz, ...data.paymentSslCommerz },
@@ -469,6 +624,7 @@ export default function Settings() {
             tierSettings: { ...prev.tierSettings, ...data.tierSettings },
             birthdayRewardSettings: { ...prev.birthdayRewardSettings, ...data.birthdayRewardSettings },
             referralRewardSettings: { ...prev.referralRewardSettings, ...data.referralRewardSettings },
+            discountedSection: { ...prev.discountedSection, ...data.discountedSection },
             turnstileEnabled: data.turnstileEnabled ?? true,
           }));
         }
@@ -527,6 +683,43 @@ export default function Settings() {
       if (res.ok) {
         const data = await res.json();
         setSettings((prev: any) => ({ ...prev, [field]: data.url }));
+      } else {
+        alert('Failed to upload image');
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  const handleDiscountImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    field: 'desktopBannerImage' | 'mobileBannerImage',
+    setUploading: (v: boolean) => void,
+    inputRef: React.RefObject<HTMLInputElement | null>
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSettings((prev: any) => ({
+          ...prev,
+          discountedSection: {
+            ...prev.discountedSection,
+            [field]: data.url
+          }
+        }));
       } else {
         alert('Failed to upload image');
       }
@@ -652,7 +845,7 @@ export default function Settings() {
   // Signature product helpers
   const addSignatureProduct = () => {
     if (settings.signatureProducts.length < 6) {
-      setSettings((prev: any) => ({ ...prev, signatureProducts: [...prev.signatureProducts, { productId: '', tagline: '' }] }));
+      setSettings((prev: any) => ({ ...prev, signatureProducts: [...prev.signatureProducts, { productId: '', tagline: '', _id: `sig-${Date.now()}` }] }));
     }
   };
   const updateSignatureProduct = (index: number, field: string, value: string) => {
@@ -664,8 +857,27 @@ export default function Settings() {
   const removeSignatureProduct = (index: number) => {
     setSettings((prev: any) => ({ ...prev, signatureProducts: prev.signatureProducts.filter((_: any, i: number) => i !== index) }));
   };
+  const handleSignatureImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (res.ok) {
+        const data = await res.json();
+        updateSignatureProduct(index, 'image', data.url);
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+    }
+  };
 
-  // Why Rivore helpers
+  // Why Rivoré helpers
   const addWhyRivoreItem = () => {
     if (settings.whyRivoreItems.length < 6) {
       setSettings((prev: any) => ({ ...prev, whyRivoreItems: [...prev.whyRivoreItems, { icon: 'Sparkles', title: '', description: '' }] }));
@@ -683,7 +895,9 @@ export default function Settings() {
 
   // Best Sellers helpers
   const addBestSellerItem = () => {
-    setSettings((prev: any) => ({ ...prev, bestSellerSliderItems: [...prev.bestSellerSliderItems, { image: '', productId: '', title: '' }] }));
+    if (settings.bestSellerSliderItems.length < 10) {
+      setSettings((prev: any) => ({ ...prev, bestSellerSliderItems: [...prev.bestSellerSliderItems, { image: '', productId: '', title: '', _id: `bs-${Date.now()}` }] }));
+    }
   };
   const updateBestSellerItem = (index: number, field: string, value: string) => {
     setSettings((prev: any) => ({
@@ -796,6 +1010,17 @@ export default function Settings() {
                 <label className="block text-sm font-medium text-muted-foreground mb-2">Meta Pixel ID</label>
                 <input type="text" value={settings.metaPixelId} onChange={(e) => setSettings({ ...settings, metaPixelId: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-primary/50 outline-none transition-all" placeholder="e.g. 123456789012345" />
                 <p className="text-xs text-muted-foreground mt-2">Enter your Meta Pixel ID to enable tracking for PageView, AddToCart, and Purchase events.</p>
+              </div>
+              <div className="bg-white p-6 rounded-2xl border border-border shadow-sm">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center"><Activity className="w-5 h-5 text-blue-600" /></div>
+                  <div>
+                    <h3 className="font-medium text-foreground">Meta Conversion API Token</h3>
+                    <p className="text-xs text-muted-foreground">Server-side tracking for more accurate purchase tracking</p>
+                  </div>
+                </div>
+                <label className="block text-sm font-medium text-muted-foreground mb-2">CAPI Access Token</label>
+                <input type="password" value={settings.metaConversionApiToken || ''} onChange={(e) => setSettings({ ...settings, metaConversionApiToken: e.target.value })} className="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-primary/50 outline-none transition-all" placeholder="EAAMuYV..." />
               </div>
               <div>
                 <label className="block text-sm font-medium text-muted-foreground mb-2">Store Name</label>
@@ -971,28 +1196,21 @@ export default function Settings() {
               <h3 className="text-lg font-serif font-semibold text-foreground mb-2">Signature Collection</h3>
               <p className="text-sm text-muted-foreground mb-4">Select up to 6 products to showcase in the Signature Collection slideshow on the homepage.</p>
               <div className="space-y-4">
-                {settings.signatureProducts.map((sp: any, i: number) => (
-                  <div key={i} className="flex flex-col sm:flex-row gap-3 bg-muted/20 p-4 rounded-xl border border-border">
-                    <div className="flex-1">
-                      <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Product</label>
-                      <select
-                        value={sp.productId}
-                        onChange={(e) => updateSignatureProduct(i, 'productId', e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-lg border border-border outline-none text-sm bg-background"
-                      >
-                        <option value="">Select a product</option>
-                        {allProducts.map((p: any) => (
-                          <option key={p._id} value={p._id}>{p.name} ({p.category})</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex-1">
-                      <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Tagline</label>
-                      <input type="text" value={sp.tagline} onChange={(e) => updateSignatureProduct(i, 'tagline', e.target.value)} placeholder="e.g. The Essence of Spring" className="w-full px-3 py-2.5 rounded-lg border border-border outline-none text-sm" />
-                    </div>
-                    <button type="button" onClick={() => removeSignatureProduct(i)} className="text-red-500 hover:text-red-700 self-end sm:self-center p-2"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                ))}
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSignatureDragEnd}>
+                  <SortableContext items={settings.signatureProducts.map((sp: any, i: number) => sp._id || `sig-${i}`)} strategy={verticalListSortingStrategy}>
+                    {settings.signatureProducts.map((sp: any, i: number) => (
+                      <SortableSignatureItem 
+                        key={sp._id || `sig-${i}`} 
+                        sp={sp} 
+                        i={i} 
+                        allProducts={allProducts}
+                        handleSignatureImageUpload={handleSignatureImageUpload}
+                        updateSignatureProduct={updateSignatureProduct}
+                        removeSignatureProduct={removeSignatureProduct}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               </div>
               {settings.signatureProducts.length < 6 && (
                 <button type="button" onClick={addSignatureProduct} className="mt-4 bg-muted text-foreground px-4 py-2.5 rounded-xl font-medium hover:bg-muted/80 transition-colors flex items-center gap-2 text-sm border border-border">
@@ -1004,57 +1222,33 @@ export default function Settings() {
             {/* Best Sellers Slider CMS */}
             <div>
               <h3 className="text-lg font-serif font-semibold text-foreground mb-2">Best Sellers Slider</h3>
-              <p className="text-sm text-muted-foreground mb-4">Upload custom slides for the Weekly Best Sellers section. This replaces the default 8 products auto-pulled algorithm.</p>
+              <p className="text-sm text-muted-foreground mb-4">Upload custom slides for the Weekly Best Sellers section. This replaces the default 8 products auto-pulled algorithm. <span className="italic block mt-1">Recommended image size: 800x1000px (4:5 ratio).</span></p>
               <div className="space-y-4">
-                {settings.bestSellerSliderItems.map((item: any, i: number) => (
-                  <div key={i} className="flex flex-col sm:flex-row gap-4 bg-muted/20 p-4 rounded-xl border border-border">
-                    <div className="shrink-0 flex items-center justify-center">
-                      <label className="cursor-pointer group relative block w-20 h-28 rounded-lg overflow-hidden border border-border bg-white shadow-sm flex items-center justify-center">
-                        <input type="file" className="hidden" accept="image/*" onChange={(e) => handleBestSellerImageUpload(e, i)} />
-                        {item.image ? (
-                          <img src={item.image} alt="Slider item" className="w-full h-full object-cover group-hover:opacity-75 transition-opacity" />
-                        ) : (
-                          <div className="text-center p-2 flex flex-col items-center">
-                            <Upload className="w-5 h-5 text-muted-foreground mb-1" />
-                            <span className="text-[10px] text-muted-foreground">Upload</span>
-                          </div>
-                        )}
-                      </label>
-                    </div>
-
-                    <div className="flex-1 flex flex-col gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Link Buy Now to Product</label>
-                        <select
-                          value={item.productId}
-                          onChange={(e) => updateBestSellerItem(i, 'productId', e.target.value)}
-                          className="w-full px-3 py-2.5 rounded-lg border border-border outline-none text-sm bg-background"
-                        >
-                          <option value="">Select a product</option>
-                          {allProducts.map((p: any) => (
-                            <option key={p._id} value={p._id}>{p.name} ({p.category})</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Custom Title Override (Optional)</label>
-                        <input type="text" value={item.title} onChange={(e) => updateBestSellerItem(i, 'title', e.target.value)} placeholder="Will use product name if empty" className="w-full px-3 py-2.5 rounded-lg border border-border outline-none text-sm" />
-                      </div>
-                    </div>
-                    
-                    <button type="button" onClick={() => removeBestSellerItem(i)} className="text-red-500 hover:text-red-700 self-end sm:self-center p-2"><Trash2 className="w-5 h-5" /></button>
-                  </div>
-                ))}
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleBestSellerDragEnd}>
+                  <SortableContext items={settings.bestSellerSliderItems.map((item: any, i: number) => item._id || `bs-${i}`)} strategy={verticalListSortingStrategy}>
+                    {settings.bestSellerSliderItems.map((item: any, i: number) => (
+                      <SortableBestSellerItem 
+                        key={item._id || `bs-${i}`} 
+                        item={item} 
+                        i={i} 
+                        allProducts={allProducts}
+                        handleBestSellerImageUpload={handleBestSellerImageUpload}
+                        updateBestSellerItem={updateBestSellerItem}
+                        removeBestSellerItem={removeBestSellerItem}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
               </div>
               <button type="button" onClick={addBestSellerItem} className="mt-4 bg-muted text-foreground px-4 py-2.5 rounded-xl font-medium hover:bg-muted/80 transition-colors flex items-center gap-2 text-sm border border-border">
                 <Plus className="w-4 h-4" /> Add Best Seller Slide
               </button>
             </div>
 
-            {/* Why Rivore */}
+            {/* Why Rivoré */}
             <div>
-              <h3 className="text-lg font-serif font-semibold text-foreground mb-2">Why Rivore Section</h3>
-              <p className="text-sm text-muted-foreground mb-4">Add up to 6 highlighted features shown in the "Why Rivore" section on the homepage.</p>
+              <h3 className="text-lg font-serif font-semibold text-foreground mb-2">Why Rivoré Section</h3>
+              <p className="text-sm text-muted-foreground mb-4">Add up to 6 highlighted features shown in the "Why Rivoré" section on the homepage.</p>
               <div className="space-y-4">
                 {settings.whyRivoreItems.map((item: any, i: number) => (
                   <div key={i} className="flex flex-col sm:flex-row gap-3 bg-muted/20 p-4 rounded-xl border border-border">
@@ -1091,6 +1285,170 @@ export default function Settings() {
           </div>
         )}
 
+        {/* ============ DISCOUNTED PERFUMES ============ */}
+        {activeTab === 'discounted' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-border">
+              <h2 className="text-xl font-serif font-semibold text-foreground">Discounted Perfumes Section</h2>
+              <label className="flex items-center cursor-pointer gap-2">
+                <span className="text-sm font-medium text-foreground">Enable Section</span>
+                <div className="relative inline-flex items-center">
+                  <input 
+                    type="checkbox" 
+                    className="sr-only peer" 
+                    checked={settings.discountedSection?.enabled ?? true} 
+                    onChange={(e) => setSettings({ ...settings, discountedSection: { ...settings.discountedSection, enabled: e.target.checked } })}
+                  />
+                  <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                </div>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <h3 className="font-semibold text-foreground border-b border-border pb-2">Content & Links</h3>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">Section Title</label>
+                  <input type="text" value={settings.discountedSection?.title || ''} onChange={(e) => setSettings({ ...settings, discountedSection: { ...settings.discountedSection, title: e.target.value } })} className="w-full bg-background border border-border rounded-lg px-4 py-2 outline-none focus:border-primary" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Section Subtitle (Optional)</label>
+                  <input type="text" value={settings.discountedSection?.subtitle || ''} onChange={(e) => setSettings({ ...settings, discountedSection: { ...settings.discountedSection, subtitle: e.target.value } })} className="w-full bg-background border border-border rounded-lg px-4 py-2 outline-none focus:border-primary" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Banner Link (URL)</label>
+                  <input type="text" value={settings.discountedSection?.bannerLink || ''} onChange={(e) => setSettings({ ...settings, discountedSection: { ...settings.discountedSection, bannerLink: e.target.value } })} className="w-full bg-background border border-border rounded-lg px-4 py-2 outline-none focus:border-primary" placeholder="/shop?discounted=true" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Sort Order (Position on Homepage)</label>
+                  <input type="number" value={settings.discountedSection?.sortOrder || 0} onChange={(e) => setSettings({ ...settings, discountedSection: { ...settings.discountedSection, sortOrder: parseInt(e.target.value) || 0 } })} className="w-full bg-background border border-border rounded-lg px-4 py-2 outline-none focus:border-primary" />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="font-semibold text-foreground border-b border-border pb-2">Layout & Dimensions</h3>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Banner Width (Desktop)</label>
+                    <div className="flex items-center gap-2">
+                      <input type="number" value={settings.discountedSection?.desktopBannerWidth || 380} onChange={(e) => setSettings({ ...settings, discountedSection: { ...settings.discountedSection, desktopBannerWidth: parseInt(e.target.value) || 0 } })} className="w-full bg-background border border-border rounded-lg px-3 py-2 outline-none" />
+                      <span className="text-sm text-muted-foreground">px</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Banner Height (Desktop)</label>
+                    <div className="flex items-center gap-2">
+                      <input type="number" value={settings.discountedSection?.desktopBannerHeight || 720} onChange={(e) => setSettings({ ...settings, discountedSection: { ...settings.discountedSection, desktopBannerHeight: parseInt(e.target.value) || 0 } })} className="w-full bg-background border border-border rounded-lg px-3 py-2 outline-none" />
+                      <span className="text-sm text-muted-foreground">px</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Product Image Width</label>
+                    <div className="flex items-center gap-2">
+                      <input type="number" value={settings.discountedSection?.productImageWidth || 320} onChange={(e) => setSettings({ ...settings, discountedSection: { ...settings.discountedSection, productImageWidth: parseInt(e.target.value) || 0 } })} className="w-full bg-background border border-border rounded-lg px-3 py-2 outline-none" />
+                      <span className="text-sm text-muted-foreground">px</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Product Image Height</label>
+                    <div className="flex items-center gap-2">
+                      <input type="number" value={settings.discountedSection?.productImageHeight || 320} onChange={(e) => setSettings({ ...settings, discountedSection: { ...settings.discountedSection, productImageHeight: parseInt(e.target.value) || 0 } })} className="w-full bg-background border border-border rounded-lg px-3 py-2 outline-none" />
+                      <span className="text-sm text-muted-foreground">px</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4 mt-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Desktop Rows</label>
+                    <input type="number" value={settings.discountedSection?.desktopProductsPerRow || 4} onChange={(e) => setSettings({ ...settings, discountedSection: { ...settings.discountedSection, desktopProductsPerRow: parseInt(e.target.value) || 4 } })} className="w-full bg-background border border-border rounded-lg px-3 py-2 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Tablet Rows</label>
+                    <input type="number" value={settings.discountedSection?.tabletProductsPerRow || 3} onChange={(e) => setSettings({ ...settings, discountedSection: { ...settings.discountedSection, tabletProductsPerRow: parseInt(e.target.value) || 3 } })} className="w-full bg-background border border-border rounded-lg px-3 py-2 outline-none" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1.5">Mobile Rows</label>
+                    <input type="number" value={settings.discountedSection?.mobileProductsPerRow || 2} onChange={(e) => setSettings({ ...settings, discountedSection: { ...settings.discountedSection, mobileProductsPerRow: parseInt(e.target.value) || 2 } })} className="w-full bg-background border border-border rounded-lg px-3 py-2 outline-none" />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-border">
+              <div>
+                <label className="block text-sm font-medium mb-2">Desktop Banner Image</label>
+                <div className="border-2 border-dashed border-border rounded-xl p-4 text-center">
+                  <input type="file" ref={discountDesktopRef} onChange={(e) => handleDiscountImageUpload(e, 'desktopBannerImage', setUploadingDiscountDesktop, discountDesktopRef)} accept="image/*" className="hidden" />
+                  {settings.discountedSection?.desktopBannerImage ? (
+                    <div className="relative inline-block w-full max-w-[200px]">
+                      <img src={settings.discountedSection.desktopBannerImage} alt="Desktop Banner" className="w-full h-auto rounded-lg" />
+                      <button type="button" onClick={() => setSettings({ ...settings, discountedSection: { ...settings.discountedSection, desktopBannerImage: '' } })} className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full"><X className="w-4 h-4" /></button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => discountDesktopRef.current?.click()} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm flex items-center gap-2 mx-auto">
+                      <Upload className="w-4 h-4" /> {uploadingDiscountDesktop ? 'Uploading...' : 'Upload Desktop Banner'}
+                    </button>
+                  )}
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Mobile Banner Image</label>
+                <div className="border-2 border-dashed border-border rounded-xl p-4 text-center">
+                  <input type="file" ref={discountMobileRef} onChange={(e) => handleDiscountImageUpload(e, 'mobileBannerImage', setUploadingDiscountMobile, discountMobileRef)} accept="image/*" className="hidden" />
+                  {settings.discountedSection?.mobileBannerImage ? (
+                    <div className="relative inline-block w-full max-w-[200px]">
+                      <img src={settings.discountedSection.mobileBannerImage} alt="Mobile Banner" className="w-full h-auto rounded-lg" />
+                      <button type="button" onClick={() => setSettings({ ...settings, discountedSection: { ...settings.discountedSection, mobileBannerImage: '' } })} className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full"><X className="w-4 h-4" /></button>
+                    </div>
+                  ) : (
+                    <button type="button" onClick={() => discountMobileRef.current?.click()} className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm flex items-center gap-2 mx-auto">
+                      <Upload className="w-4 h-4" /> {uploadingDiscountMobile ? 'Uploading...' : 'Upload Mobile Banner'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Live Preview (Basic wireframe representation) */}
+            <div className="mt-8 pt-6 border-t border-border">
+              <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2"><Eye className="w-4 h-4" /> Live Wireframe Preview</h3>
+              <div className="bg-muted/10 border border-border rounded-2xl p-4 overflow-hidden relative">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-serif font-bold text-center w-full">{settings.discountedSection?.title || 'Discounted Perfumes'}</h2>
+                </div>
+                
+                <div className="flex flex-col md:flex-row gap-4">
+                  {/* Banner Preview */}
+                  {settings.discountedSection?.desktopBannerImage ? (
+                    <div className="shrink-0 rounded-xl overflow-hidden shadow-sm" style={{ width: `${settings.discountedSection.desktopBannerWidth || 380}px`, height: `${settings.discountedSection.desktopBannerHeight || 720}px` }}>
+                      <img src={settings.discountedSection.desktopBannerImage} className="w-full h-full object-cover" alt="Banner" />
+                    </div>
+                  ) : (
+                    <div className="shrink-0 rounded-xl overflow-hidden shadow-sm bg-muted flex items-center justify-center border border-dashed border-border" style={{ width: `${settings.discountedSection?.desktopBannerWidth || 380}px`, height: `${settings.discountedSection?.desktopBannerHeight || 720}px` }}>
+                      <span className="text-muted-foreground text-sm">Banner Placeholder</span>
+                    </div>
+                  )}
+
+                  {/* Carousel Preview Placeholder */}
+                  <div className="flex-1 overflow-hidden">
+                    <div className="flex gap-4">
+                      {Array.from({ length: settings.discountedSection?.desktopProductsPerRow || 4 }).map((_, i) => (
+                        <div key={i} className="bg-background rounded-xl shadow-sm border border-border flex-1 flex flex-col items-center justify-center" style={{ height: `${settings.discountedSection?.productImageHeight || 320}px` }}>
+                          <span className="text-muted-foreground text-sm">Product Card {i+1}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ============ STORE LOCATION ============ */}
         {activeTab === 'store' && (
           <div className="space-y-6">
@@ -1116,7 +1474,7 @@ export default function Settings() {
               <div>
                 <div className="flex justify-between items-end mb-3">
                   <label className="block text-sm font-medium text-muted-foreground">Store Image (transparent background recommended)</label>
-                  <span className="text-[10px] text-muted-foreground/60 italic">Recommended: 3:2 or 1:1 ratio. 1200x800px. Max size 2MB.</span>
+                  <span className="text-[10px] text-muted-foreground/60 italic">Recommended: 1080x1080px (1:1 square) or 1200x800px (Landscape). Max 2MB.</span>
                 </div>
                 <div className="flex flex-wrap gap-4 items-end">
                   {settings.storeLocationImage && (

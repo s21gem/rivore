@@ -42,6 +42,7 @@ router.post('/', authenticateAdmin, logAdminActivity('Hero Created', req => `Tit
     const media = new HeroMedia(req.body);
     await media.save();
     activeCache = null; // invalidate cache
+    req.app.get('io')?.emit('hero_updated');
     res.status(201).json(media);
   } catch (error: any) {
     console.error('Error creating hero media:', error);
@@ -57,6 +58,7 @@ router.put('/:id', authenticateAdmin, logAdminActivity('Hero Updated', req => `H
       return res.status(404).json({ message: 'Hero media not found' });
     }
     activeCache = null; // invalidate cache
+    req.app.get('io')?.emit('hero_updated');
     res.json(media);
   } catch (error: any) {
     console.error('Error updating hero media:', error);
@@ -72,6 +74,7 @@ router.delete('/:id', authenticateAdmin, logAdminActivity('Hero Deleted', req =>
       return res.status(404).json({ message: 'Hero media not found' });
     }
     activeCache = null; // invalidate cache
+    req.app.get('io')?.emit('hero_updated');
     res.json({ message: 'Hero media deleted successfully' });
   } catch (error) {
     console.error('Error deleting hero media:', error);
@@ -100,6 +103,7 @@ router.post('/reorder', authenticateAdmin, logAdminActivity('Hero Reordered', ()
       activeCache = null; // invalidate cache
     }
     
+    req.app.get('io')?.emit('hero_updated');
     res.json({ message: 'Reordered successfully' });
   } catch (error) {
     console.error('Error reordering hero media:', error);

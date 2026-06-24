@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { ShoppingBag, Home, Search, User, Gift, X } from 'lucide-react';
+import { ShoppingCart, Home, Search, User, Gift, X } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { useCartStore } from '../store/cartStore';
 import { toast } from 'sonner';
@@ -95,7 +95,7 @@ export default function Layout() {
           ? 'bg-white text-black border-b border-[#eee] block' 
           : `hidden md:block ${scrolled ? 'bg-[#0B0B0B]/95 backdrop-blur-xl border-b border-white/10 shadow-sm' : 'bg-[#0B0B0B]/80 backdrop-blur-md border-b border-white/5'}`
       }`}>
-        <div className={`container mx-auto flex items-center justify-between ${isCheckout ? 'h-[60px] px-4' : 'h-16 px-6'}`}>
+        <div className={`mx-auto flex items-center justify-between transition-all duration-300 ${isCheckout ? 'container h-[60px] px-4' : 'w-full max-w-[3840px] h-16 2xl:h-20 px-6 md:px-10 lg:px-[4vw] 2xl:px-[6vw]'}`}>
           
           {/* Mobile Hamburger (Only visible on Checkout Mobile) */}
           {isCheckout && (
@@ -112,36 +112,51 @@ export default function Layout() {
           <Link to="/" className="hover:opacity-80 transition-opacity flex-1 md:flex-none flex justify-center md:justify-start">
             <img
               src={isCheckout ? logoDark : logoWhite}
-              alt="Rivore"
-              className={`${isCheckout ? 'h-5 md:h-6' : 'h-6'} w-auto transition-opacity duration-300`}
+              alt="Rivoré"
+              className={`${isCheckout ? 'h-5 md:h-6' : 'h-5 lg:h-6 2xl:h-7'} w-auto transition-all duration-300`}
               referrerPolicy="no-referrer"
             />
           </Link>
 
           {/* Desktop Nav (Hidden on mobile) */}
-          <nav className={`hidden md:flex items-center space-x-10 ${isCheckout ? 'text-black font-semibold' : 'text-white/80'}`}>
-            <Link to="/" className={`text-[13px] uppercase tracking-[0.15em] font-medium hover:text-${isCheckout ? 'black' : 'white'} transition-colors`}>Home</Link>
-            <Link to="/shop" className={`text-[13px] uppercase tracking-[0.15em] font-medium hover:text-${isCheckout ? 'black' : 'white'} transition-colors`}>Shop</Link>
-            <Link to="/combos" className={`text-[13px] uppercase tracking-[0.15em] font-medium hover:text-${isCheckout ? 'black' : 'white'} transition-colors`}>Combos</Link>
-            <Link to="/about" className={`text-[13px] uppercase tracking-[0.15em] font-medium hover:text-${isCheckout ? 'black' : 'white'} transition-colors`}>About</Link>
-            <Link to="/contact" className={`text-[13px] uppercase tracking-[0.15em] font-medium hover:text-${isCheckout ? 'black' : 'white'} transition-colors`}>Contact</Link>
+          <nav className={`hidden md:flex items-center gap-8 lg:gap-10 2xl:gap-14 transition-all duration-300 ${isCheckout ? 'text-black/80 font-semibold' : 'text-white/70'}`}>
+            <Link to="/" className={`relative group text-[11px] lg:text-[12px] 2xl:text-[13px] uppercase tracking-[0.2em] font-medium transition-colors duration-300 ${isCheckout ? 'hover:text-black' : 'hover:text-white'}`}>
+              Home
+              <span className="absolute -bottom-2 left-0 w-full h-[1px] bg-[#C9A96E] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-center"></span>
+            </Link>
+            <Link to="/shop" className={`relative group text-[11px] lg:text-[12px] 2xl:text-[13px] uppercase tracking-[0.2em] font-medium transition-colors duration-300 ${isCheckout ? 'hover:text-black' : 'hover:text-white'}`}>
+              Shop
+              <span className="absolute -bottom-2 left-0 w-full h-[1px] bg-[#C9A96E] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-center"></span>
+            </Link>
+            <Link to="/combos" className={`relative group text-[11px] lg:text-[12px] 2xl:text-[13px] uppercase tracking-[0.2em] font-medium transition-colors duration-300 ${isCheckout ? 'hover:text-black' : 'hover:text-white'}`}>
+              Combos
+              <span className="absolute -bottom-2 left-0 w-full h-[1px] bg-[#C9A96E] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-center"></span>
+            </Link>
+            <Link to="/about" className={`relative group text-[11px] lg:text-[12px] 2xl:text-[13px] uppercase tracking-[0.2em] font-medium transition-colors duration-300 ${isCheckout ? 'hover:text-black' : 'hover:text-white'}`}>
+              About
+              <span className="absolute -bottom-2 left-0 w-full h-[1px] bg-[#C9A96E] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-center"></span>
+            </Link>
+            <Link to="/contact" className={`relative group text-[11px] lg:text-[12px] 2xl:text-[13px] uppercase tracking-[0.2em] font-medium transition-colors duration-300 ${isCheckout ? 'hover:text-black' : 'hover:text-white'}`}>
+              Contact
+              <span className="absolute -bottom-2 left-0 w-full h-[1px] bg-[#C9A96E] scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-center"></span>
+            </Link>
           </nav>
 
           {/* Actions (Hidden on mobile checkout to keep it clean, active otherwise) */}
-          <div className={`items-center space-x-6 ${isCheckout ? 'hidden md:flex' : 'flex'}`}>
+          <div className={`items-center gap-6 lg:gap-8 2xl:gap-10 transition-all duration-300 ${isCheckout ? 'hidden md:flex' : 'flex'}`}>
             <button 
               onClick={() => setCartOpen(true)}
               className="relative group hover:opacity-100 transition-opacity flex items-center justify-center"
             >
-              <ShoppingBag className={`w-5 h-5 group-hover:scale-105 transition-all duration-300 stroke-[1.5] ${isCheckout ? 'text-black hover:text-[#C9A96E]' : 'text-white/80 hover:text-[#C9A96E]'}`} />
+              <ShoppingCart strokeWidth={1} className={`w-[18px] h-[18px] lg:w-[20px] lg:h-[20px] 2xl:w-[24px] 2xl:h-[24px] group-hover:scale-105 transition-all duration-300 ${isCheckout ? 'text-black hover:text-[#C9A96E]' : 'text-white/80 hover:text-[#C9A96E]'}`} />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-2 bg-[#C9A96E] text-[#1A061C] text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                <span className="absolute -top-1.5 -right-2 2xl:-top-2 2xl:-right-2.5 bg-[#C9A96E] text-[#1A061C] text-[8px] 2xl:text-[10px] font-bold w-[14px] h-[14px] 2xl:w-[18px] 2xl:h-[18px] rounded-full flex items-center justify-center transition-all duration-300">
                   {cartCount}
                 </span>
               )}
             </button>
             <Link to="/login" className="relative group hover:opacity-100 transition-opacity flex items-center justify-center">
-              <User className={`w-5 h-5 group-hover:scale-105 transition-all duration-300 stroke-[1.5] ${isCheckout ? 'text-black hover:text-[#C9A96E]' : 'text-white/80 hover:text-[#C9A96E]'}`} />
+              <User strokeWidth={1} className={`w-[18px] h-[18px] lg:w-[20px] lg:h-[20px] 2xl:w-[24px] 2xl:h-[24px] group-hover:scale-105 transition-all duration-300 ${isCheckout ? 'text-black hover:text-[#C9A96E]' : 'text-white/80 hover:text-[#C9A96E]'}`} />
             </Link>
           </div>
           
@@ -162,7 +177,7 @@ export default function Layout() {
       {isCheckout && (
         <div className={`fixed top-0 left-0 h-full w-[75%] bg-white z-[200] transform transition-transform duration-300 md:hidden shadow-2xl flex flex-col ${menuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
           <div className="flex items-center justify-between p-4 border-b border-gray-100 h-[60px]">
-            <img src={logoDark} alt="Rivore" className="h-6 w-auto" />
+            <img src={logoDark} alt="Rivoré" className="h-6 w-auto" />
             <button onClick={() => setMenuOpen(false)} className="p-2 -mr-2 text-gray-500 hover:bg-gray-100 rounded-lg">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -189,11 +204,11 @@ export default function Layout() {
               }} 
               className="flex items-center space-x-4 text-gray-800 font-medium w-full text-left"
             >
-              <ShoppingBag className="w-5 h-5 text-gray-400" />
+              <ShoppingCart strokeWidth={1} className="w-5 h-5 text-gray-400" />
               <span>Cart</span>
             </button>
             <Link to="/login" onClick={() => setMenuOpen(false)} className="flex items-center space-x-4 text-gray-800 font-medium">
-              <User className="w-5 h-5 text-gray-400" />
+              <User strokeWidth={1} className="w-5 h-5 text-gray-400" />
               <span>Profile</span>
             </Link>
           </div>
@@ -224,7 +239,7 @@ export default function Layout() {
             {/* Center Logo Button */}
             <div className="relative -top-6">
               <Link to="/" className={`flex items-center justify-center w-16 h-16 rounded-full shadow-[0_-4px_20px_rgba(0,0,0,0.1)] bg-white transform transition-all active:scale-95 hover:shadow-2xl overflow-hidden border-[3px] border-white ${location.pathname === '/' ? 'shadow-[0_0_15px_rgba(43,18,39,0.3)]' : ''}`}>
-                <img src="/apple-touch-icon.png" alt="Rivore" className="w-full h-full object-cover" />
+                <img src="/apple-touch-icon.png" alt="Rivoré" className="w-full h-full object-cover" />
               </Link>
             </div>
 
@@ -233,7 +248,7 @@ export default function Layout() {
               className={`flex flex-col items-center justify-center w-16 h-full space-y-1 relative transition-colors ${isCartOpen ? 'text-[color:var(--color-brand-wine)] drop-shadow-[0_0_8px_rgba(43,18,39,0.2)]' : 'text-gray-500'}`}
             >
               <div className="relative">
-                <ShoppingBag className="w-6 h-6 stroke-[1.5]" />
+                <ShoppingCart strokeWidth={1} className="w-6 h-6" />
                 {cartCount > 0 && (
                   <span className="absolute -top-1 -right-1 bg-[color:var(--color-brand-wine)] text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                     {cartCount}
@@ -243,7 +258,7 @@ export default function Layout() {
               <span className="text-[11px] font-semibold">Cart</span>
             </button>
             <Link to="/login" className={`flex flex-col items-center justify-center w-16 h-full space-y-1 transition-colors ${location.pathname.startsWith('/login') ? 'text-[color:var(--color-brand-wine)] drop-shadow-[0_0_8px_rgba(43,18,39,0.2)]' : 'text-gray-500'}`}>
-              <User className="w-6 h-6 stroke-[1.5]" />
+              <User strokeWidth={1} className="w-6 h-6" />
               <span className="text-[11px] font-semibold">Profile</span>
             </Link>
           </div>
@@ -255,7 +270,7 @@ export default function Layout() {
         <div className="container mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12 text-center md:text-left">
           <div className="md:col-span-1 flex flex-col items-center md:items-start">
             <div className="mb-6">
-              <img src={logoWhite} alt="Rivore" className="h-7 w-auto" referrerPolicy="no-referrer" />
+              <img src={logoWhite} alt="Rivoré" className="h-7 w-auto" referrerPolicy="no-referrer" />
             </div>
             <p className="text-sm text-gray-400 leading-relaxed font-light mb-6">
               Premium perfumes crafted for elegance and luxury. Discover your signature scent.
@@ -326,10 +341,23 @@ export default function Layout() {
           </div>
         </div>
         <div className="container mx-auto px-6 mt-16 pt-8 border-t border-white/5 flex flex-col items-center md:flex-row md:justify-between text-[10px] text-gray-500 font-light tracking-[0.1em] uppercase text-center md:text-left">
-          <p>&copy; {new Date().getFullYear()} RIVORE. ALL RIGHTS RESERVED.</p>
+          <p>&copy; {new Date().getFullYear()} RIVORÉ. ALL RIGHTS RESERVED.</p>
           <p className="mt-4 md:mt-0">CRAFTED WITH ELEGANCE</p>
         </div>
       </footer>
+
+      {/* Floating Cart Badge (Bottom Left) */}
+      {cartCount > 0 && !isCartOpen && !isCheckout && (
+        <button
+          onClick={() => setCartOpen(true)}
+          className="fixed bottom-24 left-4 md:bottom-8 md:left-8 z-[100] flex items-center justify-center gap-3 bg-[#111111]/95 backdrop-blur-md border border-[#C9A96E]/40 text-[#C9A96E] px-5 py-3.5 rounded-full shadow-[0_15px_40px_rgba(0,0,0,0.3)] hover:scale-105 hover:bg-[#C9A96E] hover:text-[#1A061C] transition-all duration-500 group group/cart overflow-hidden"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover/cart:translate-x-full transition-transform duration-1000 ease-in-out"></div>
+          <ShoppingCart strokeWidth={1.5} className="w-5 h-5 relative z-10" />
+          <span className="text-xs font-bold tracking-[0.15em] uppercase relative z-10">{cartCount} {cartCount === 1 ? 'Item' : 'Items'}</span>
+        </button>
+      )}
+
       <CartSidebar />
     </div>
   );

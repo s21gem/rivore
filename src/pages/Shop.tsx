@@ -4,7 +4,8 @@ import Loader from '../components/Loader';
 import { Search, Filter, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { optimizeCloudinaryUrl } from '../utils/imageOptimizer';
 import { useSettingsStore } from '../store/settingsStore';
-import { CloudinaryImage } from '../components/ui/CloudinaryImage';
+import ProductCard from '../components/ProductCard';
+import { io } from 'socket.io-client';
 
 interface Product {
   _id: string;
@@ -70,7 +71,7 @@ export default function Shop() {
         if (category !== 'All') query.set('category', category);
         if (searchQuery) query.set('search', searchQuery);
         query.set('page', page.toString());
-        query.set('limit', '8');
+        query.set('limit', '18');
         
         Object.entries(activeFilters).forEach(([key, value]) => {
           if (value) query.set(key, value as string);
@@ -94,7 +95,13 @@ export default function Shop() {
       fetchProducts();
     }, 300);
 
-    return () => clearTimeout(timeoutId);
+    const socket = io();
+    socket.on('products_updated', fetchProducts);
+
+    return () => {
+      clearTimeout(timeoutId);
+      socket.disconnect();
+    };
   }, [category, searchQuery, page, activeFilters]);
 
   const updateURL = (newCategory: string, newSearch: string, newPage: number, newFilters: Record<string, string>) => {
@@ -274,98 +281,16 @@ export default function Shop() {
               </div>
             ) : products.length > 0 ? (
               <>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
+                <div className="flex flex-wrap justify-center gap-4 md:gap-6">
                   {products.map((product) => {
-                      const basePrice = product.sizes ? (product.sizes['50ml'] || Object.values(product.sizes)[0]) : product.price;
-                      const discountPct = product.discountAmount || 0;
-                      const displayPrice = discountPct > 0 ? Math.round(basePrice * (1 - discountPct / 100)) : basePrice;
-                      const displayImage = optimizeCloudinaryUrl(product.image || product.images?.[0] || 'https://via.placeholder.com/400x500', 600);
-                      const hasSecondaryImage = product.images && product.images.length > 1;
-                      const secondaryImage = hasSecondaryImage ? optimizeCloudinaryUrl(product.images[1], 600) : null;
-                      
                       return (
-                      <Link to={`/product/${product.slug || product._id || product.id}`} key={product._id || product.id} className="group block">
-                        {/* Luxury Glass Card Surface */}
-                        <div className="glass-card relative rounded-[1.5rem] overflow-hidden">
-                          
-                          {/* Product Image Container with Spotlight */}
-                          <div className="relative aspect-[3/4] overflow-hidden bg-[#faf8ff]">
-                            
-                            {/* Studio Spotlight Glow */}
-                            <div className="absolute inset-0 flex justify-center items-center pointer-events-none">
-                              <div className="w-44 h-44 bg-white blur-[40px] rounded-full transition-all duration-700"></div>
-                            </div>
-                            
-                            {/* Secondary warm glow */}
-                            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3/4 h-1/3 bg-gradient-to-t from-[#C9A96E]/[0.08] to-transparent blur-[40px] pointer-events-none"></div>
-
-                            {/* Product Image - Floating */}
-                            <div className="absolute inset-0 flex items-center justify-center p-8">
-                              <CloudinaryImage
-                                src={product.image || product.images?.[0] || 'https://via.placeholder.com/400x500'}
-                                alt={product.name}
-                                className={`w-full h-full object-contain absolute z-10 transform -translate-y-[6px] scale-[1.02] transition-all duration-500 ease-out ${hasSecondaryImage ? 'group-hover:opacity-0' : 'group-hover:-translate-y-3 group-hover:scale-[1.06] group-hover:rotate-[0.5deg]'}`}
-                                style={{ padding: '2rem' }}
-                                width={600}
-                                loading="lazy"
-                              />
-                              {hasSecondaryImage && (
-                                <CloudinaryImage
-                                  src={product.images[1]}
-                                  alt={`${product.name} Hover`}
-                                  className="w-full h-full object-contain absolute z-20 opacity-0 group-hover:opacity-100 transform -translate-y-[6px] scale-[1.02] group-hover:-translate-y-3 group-hover:scale-[1.06] transition-all duration-500 ease-out"
-                                  style={{ padding: '2rem' }}
-                                  width={600}
-                                  loading="lazy"
-                                />
-                              )}
-                            </div>
-
-                          {/* Light sweep on hover */}
-                          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/[0.6] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
-
-                          {/* Stock + Discount Badges */}
-                          <div className="absolute top-4 left-4 z-20 flex flex-col gap-1.5">
-                            {product.stock <= 0 ? (
-                              <span className="bg-red-500/10 backdrop-blur-md text-red-600 text-[9px] font-bold uppercase tracking-[0.15em] px-3 py-1.5 rounded-full border border-red-500/20 shadow-sm">
-                                Out of Stock
-                              </span>
-                            ) : product.stock <= (product.lowStockThreshold || 5) ? (
-                              <span className="bg-amber-500/10 backdrop-blur-md text-amber-600 text-[9px] font-bold uppercase tracking-[0.15em] px-3 py-1.5 rounded-full border border-amber-500/20 shadow-sm">
-                                Low Stock
-                              </span>
-                            ) : (
-                              <span className="bg-emerald-500/10 backdrop-blur-md text-emerald-600 text-[9px] font-bold uppercase tracking-[0.15em] px-3 py-1.5 rounded-full border border-emerald-500/20 shadow-sm">
-                                In Stock
-                              </span>
-                            )}
-                            {discountPct > 0 && (
-                              <span className="bg-red-500 text-white text-[9px] font-bold uppercase tracking-[0.1em] px-3 py-1.5 rounded-full shadow-sm">
-                                -{discountPct}% OFF
-                              </span>
-                            )}
-                          </div>
-
-                          {/* View Details overlay */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-white/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400 flex items-end justify-center pb-8 z-20">
-                            <span className="bg-[#111111] text-white px-6 py-2.5 rounded-full text-sm font-semibold tracking-wide transform translate-y-4 group-hover:translate-y-0 transition-all duration-400 shadow-md">
-                              View Details
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Product Info - Glass Footer */}
-                        <div className="p-5 text-center bg-white border-t border-[#eeeeee]">
-                          <p className="text-[10px] text-[#777777] uppercase tracking-[0.2em] mb-1.5 font-medium">{product.category}</p>
-                          <h3 className="text-lg font-serif font-bold text-[#111111] mb-1.5 tracking-wide">{product.name}</h3>
-                          <div className="flex items-center justify-center gap-2">
-                            {discountPct > 0 && <span className="text-xs text-muted-foreground line-through opacity-70">৳{basePrice}</span>}
-                            <p className="font-bold text-sm tracking-wider gradient-text-luxury">৳{displayPrice}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  )})}
+                        <ProductCard 
+                          key={product._id || product.id} 
+                          product={product} 
+                          className="w-[calc(50%-0.5rem)] md:w-[calc(33.333%-1rem)] lg:w-[calc(25%-1.125rem)] xl:w-[calc(20%-1.2rem)] 2xl:w-[calc(16.666%-1.25rem)]" 
+                        />
+                      );
+                  })}
                 </div>
 
                 {/* Pagination */}

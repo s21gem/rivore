@@ -2,7 +2,8 @@ import cron from 'node-cron';
 import mongoose from 'mongoose';
 import fs from 'fs';
 import path from 'path';
-import archiver from 'archiver';
+import * as archiverPkg from 'archiver';
+const archiver = ('default' in archiverPkg ? archiverPkg.default : archiverPkg) as any;
 import BackupLog from '../models/BackupLog';
 
 // Ensure backup directory exists

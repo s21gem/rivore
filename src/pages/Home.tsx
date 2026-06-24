@@ -3,90 +3,104 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Clock, Sparkles, Gem, MapPin, Store } from 'lucide-react';
 import { useAutoScroll } from '../utils/useAutoScroll';
-import Recommendations from '../components/Recommendations';
+import { io } from 'socket.io-client';
+
 import { optimizeCloudinaryUrl } from '../utils/imageOptimizer';
 import { CloudinaryImage } from '../components/ui/CloudinaryImage';
+import ProductCard from '../components/ProductCard';
 
 // Read pre-cached settings from inline script in index.html
 const getCachedSettings = () => (window as any).__SETTINGS_CACHE__ || null;
 
 const SignatureCard = ({ product, index }: { product: any, index: number, key?: string | number }) => {
-  const signatureContent: Record<string, { tagline: string }> = {
+  const signatureContent: Record<string, { tagline: string; image?: string; customDescription?: string }> = {
     'Bloom': { tagline: 'The Essence of Spring' },
     'Intense': { tagline: 'Command the Room' },
     'Amber': { tagline: 'Addictive & Warm' },
     'Infina': { tagline: 'Smooth & Tropical' }
   };
   
-  const content = signatureContent[product.name] || { tagline: product.name };
+  const content: { tagline: string; image?: string; customDescription?: string } = {
+    tagline: product._cmsTagline || signatureContent[product.name]?.tagline || product.name,
+    image: product._cmsImage || signatureContent[product.name]?.image,
+    customDescription: product._cmsCustomDescription || signatureContent[product.name]?.customDescription,
+  };
   const displayImage = optimizeCloudinaryUrl(product.image || product.images?.[0] || 'https://via.placeholder.com/800x1000', 800);
 
   return (
     <motion.div 
-      initial={{ opacity: 0, y: 30 }}
+      initial={{ opacity: 0, y: 40 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.6, delay: index * 0.15 }}
-      className={`flex flex-col ${index % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'} items-center gap-6 md:gap-12 py-12 md:py-16`}
+      viewport={{ once: true, margin: "-100px" }}
+      transition={{ duration: 0.8, delay: index * 0.1, ease: [0.16, 1, 0.3, 1] }}
+      className="relative w-full max-w-[1000px] mx-auto mb-16 md:mb-24 group"
     >
-      {/* Image Side */}
-      <div className="w-full md:w-1/2 flex justify-center items-center h-[300px] md:h-[450px] shrink-0">
-        <Link to={`/product/${product.slug || product._id || product.id}`} className="relative block group h-full w-full flex items-center justify-center">
-            <div 
-              className="relative flex items-center justify-center p-0 h-full w-[240px] md:w-[400px] bg-transparent group-hover:scale-105 group-hover:-translate-y-4"
-              style={{ transition: 'all 0.6s cubic-bezier(0.25, 1, 0.5, 1)' }}
-            >
-              <CloudinaryImage 
-                src={product.image || product.images?.[0] || 'https://via.placeholder.com/800x1000'} 
-                alt={product.name} 
-                width={800}
-                className={`w-full h-full object-contain z-10 transition-all duration-500 ${product.images?.length > 1 ? 'group-hover:opacity-0' : ''}`}
-                loading={index === 0 ? "eager" : "lazy"}
-              />
-              
-              {product.images?.length > 1 && (
-                <div className="w-full h-full object-contain absolute inset-0 m-auto z-10 opacity-0 group-hover:opacity-100 transition-all duration-500">
-                  <CloudinaryImage 
-                    src={product.images[1]} 
-                    alt={`${product.name} Hover`} 
-                    width={800}
-                    loading="lazy"
-                  />
-                </div>
-              )}
-              
-              {/* Stock Badge */}
-              <div className="absolute top-4 right-4 z-20">
-                {product.stock <= 0 ? (
-                  <span className="bg-red-500/90 backdrop-blur-sm text-white text-[10px] md:text-sm font-bold uppercase tracking-wider px-3 py-1.5 md:px-5 md:py-2.5 rounded-full shadow-lg border border-red-400">
-                    Out of Stock
-                  </span>
-                ) : product.stock <= (product.lowStockThreshold || 5) ? (
-                  <span className="bg-yellow-500/90 backdrop-blur-sm text-white text-[10px] md:text-sm font-bold uppercase tracking-wider px-3 py-1.5 md:px-5 md:py-2.5 rounded-full shadow-lg border border-yellow-400">
-                    Low Stock
-                  </span>
-                ) : null}
-              </div>
+      {/* Main Container - Match Reference */}
+      <div className={`relative flex flex-col ${index % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'} items-center bg-[#fafafa] rounded-[2rem] border border-[#C9A96E]/50 shadow-[0_10px_30px_rgba(0,0,0,0.03)] p-4 md:p-5 md:h-[450px]`}>
+        
+        {/* Photo Card */}
+        <div className={`relative w-full md:w-[45%] h-[350px] md:h-full shrink-0 overflow-hidden rounded-[1.5rem] bg-[#111] shadow-[0_5px_15px_rgba(0,0,0,0.1)] z-20`}>
+          <Link to={`/product/${product.slug || product._id || product.id}`} className="relative block h-full w-full">
+            <CloudinaryImage 
+              src={content.image || product.image || product.images?.[0] || 'https://via.placeholder.com/800x1000'} 
+              alt={product.name} 
+              width={800}
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+              loading={index === 0 ? "eager" : "lazy"}
+            />
+            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/80 via-black/20 to-transparent z-10 pointer-events-none"></div>
+
+            {/* Stock Badge */}
+            <div className="absolute top-4 left-4 z-20">
+              {product.stock <= 0 ? (
+                <span className="bg-red-500/90 backdrop-blur-md text-white text-[10px] md:text-xs font-bold uppercase tracking-wider px-4 py-2 rounded-full shadow-md border border-red-400">
+                  Out of Stock
+                </span>
+              ) : product.stock <= (product.lowStockThreshold || 5) ? (
+                <span className="bg-amber-500/90 backdrop-blur-md text-white text-[10px] md:text-xs font-bold uppercase tracking-wider px-4 py-2 rounded-full shadow-md border border-amber-400">
+                  Low Stock
+                </span>
+              ) : null}
             </div>
-        </Link>
-      </div>
-      
-      {/* Description Side */}
-      <div className="w-full md:w-1/2 flex items-center justify-center md:justify-start">
-        <div className="bg-white p-5 md:p-10 rounded-3xl shadow-[0_15px_50px_rgba(0,0,0,0.06)] border border-[#eeeeee] w-full max-w-lg flex flex-col justify-center text-center md:text-left transition-all duration-500 hover:shadow-[0_25px_60px_rgba(0,0,0,0.1)]">
-          <p className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-[#C9A96E] mb-2">{product.category}</p>
-          <h3 className="text-2xl md:text-4xl font-serif font-bold text-[#111111] mb-1 md:mb-2">{product.name}</h3>
-          <h4 className="text-sm md:text-lg font-serif italic text-[#111111]/70 mb-3 md:mb-5">{content.tagline}</h4>
-          <p className="text-xs md:text-[15px] text-[#555] mb-5 md:mb-8 leading-relaxed">{product.description}</p>
-          <div className="flex justify-center md:justify-start mt-6 md:mt-10">
-            <Link 
-              to={`/product/${product.slug || product._id || product.id}`} 
-              className="bg-[#111111] text-white w-full sm:w-auto px-10 py-3.5 rounded-lg text-base font-semibold transition-all duration-300 hover:scale-105 hover:shadow-[0_8px_20px_rgba(0,0,0,0.15)] inline-block text-center"
-            >
-              Buy Now
-            </Link>
+          </Link>
+        </div>
+        
+        {/* Description Side */}
+        <div className={`relative w-full md:w-[55%] p-6 md:p-10 flex flex-col justify-center h-full text-center ${index % 2 === 0 ? 'md:pl-12 md:text-left' : 'md:pr-12 md:text-right'} z-10`}>
+          
+          {/* Category Tag - Gold Gradient */}
+          <div className={`mb-4 md:mb-0 flex justify-center md:absolute md:top-8 ${index % 2 === 0 ? 'md:right-8' : 'md:left-8'}`}>
+            <span className="bg-gradient-to-r from-[#C9A96E] to-[#e6d0a1] text-white text-[10px] font-bold uppercase tracking-[0.1em] px-3 py-1.5 rounded-sm shadow-sm">
+              {product.category || 'FEMALE'}
+            </span>
+          </div>
+
+          <div className="relative z-10">
+            {/* Title Section */}
+            <h2 className="text-xl md:text-2xl font-serif text-[#333] tracking-[0.15em] mb-1">Rivoré</h2>
+            <h3 className="text-4xl md:text-5xl font-black text-[#111111] mb-2 uppercase tracking-tight line-clamp-1">{product.name}</h3>
+            <h4 className="text-sm md:text-[15px] font-serif italic text-[#888] mb-6 md:mb-8 line-clamp-1">{content.tagline}</h4>
+            
+            {/* Description Text - Fixed Height to keep button position identical */}
+            <div className={`mb-6 md:mb-8 max-w-[95%] md:max-w-[90%] md:min-h-[75px] mx-auto ${index % 2 === 0 ? 'md:mr-auto md:ml-0' : 'md:ml-auto md:mr-0'}`}>
+              <p className="text-[13px] md:text-sm text-[#444] leading-[1.6] md:leading-[1.8] font-medium line-clamp-3 md:line-clamp-none">
+                {content.customDescription || product.description}
+              </p>
+            </div>
+            
+            {/* Button */}
+            <div>
+              <Link 
+                to={`/product/${product.slug || product._id || product.id}`} 
+                className="group/btn relative overflow-hidden bg-[#1a1a1a] text-[#C9A96E] px-8 py-3 rounded-full text-xs font-bold tracking-[0.15em] uppercase transition-all duration-300 hover:bg-black shadow-[0_10px_20px_rgba(0,0,0,0.2)] hover:shadow-[0_15px_25px_rgba(0,0,0,0.3)] inline-flex items-center justify-center"
+              >
+                <span className="relative z-10">Discover Scent</span>
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover/btn:translate-x-full transition-transform duration-700 ease-out"></div>
+              </Link>
+            </div>
           </div>
         </div>
+        
       </div>
     </motion.div>
   );
@@ -102,13 +116,15 @@ export default function Home() {
   const [comboImage, setComboImage] = useState(settings?.comboSectionImage || '');
   const [bestSellers, setBestSellers] = useState<any[]>([]);
   const [bestSellerIndex, setBestSellerIndex] = useState(0);
+  const [discountedProducts, setDiscountedProducts] = useState<any[]>([]);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [heroMediaList, setHeroMediaList] = useState<any[]>([]);
+  const [isLoadingHeroMedia, setIsLoadingHeroMedia] = useState(true);
 
   const { scrollRef: testimonialsScrollRef, handlers: testimonialsScrollHandlers } = useAutoScroll(0.5);
 
   // CMS-driven state
-  const [cmsSignatureProducts, setCmsSignatureProducts] = useState<{productId: string; tagline: string}[]>([]);
+  const [cmsSignatureProducts, setCmsSignatureProducts] = useState<any[]>([]);
   const [cmsWhyRivore, setCmsWhyRivore] = useState<{icon: string; title: string; description: string}[]>([]);
   const [storeLocation, setStoreLocation] = useState({
     name: settings?.storeLocationName || 'RIVORÉ Flagship Store',
@@ -126,7 +142,7 @@ export default function Home() {
     const fetchFeatured = async () => {
       try {
         const [productsRes, settingsRes, heroMediaRes] = await Promise.all([
-          fetch('/api/products?limit=20'),
+          fetch('/api/products?limit=100'),
           fetch('/api/settings'),
           fetch('/api/heroMedia/active')
         ]);
@@ -135,6 +151,7 @@ export default function Home() {
           const mediaData = await heroMediaRes.json();
           setHeroMediaList(mediaData);
         }
+        setIsLoadingHeroMedia(false);
 
         let allProducts: any[] = [];
         if (productsRes.ok) {
@@ -142,7 +159,7 @@ export default function Home() {
           allProducts = data.products || data || [];
         }
         
-        let sigProductIds: {productId: string; tagline: string}[] = [];
+        let sigProductIds: any[] = [];
         let settingsData: any = null;
         if (settingsRes.ok) {
           settingsData = await settingsRes.json();
@@ -180,7 +197,12 @@ export default function Home() {
           for (const sp of sigProductIds) {
             const found = allProducts.find((p: any) => (p._id === sp.productId || p.id === sp.productId));
             if (found) {
-              signature.push({ ...found, _cmsTagline: sp.tagline });
+              signature.push({ 
+                ...found, 
+                _cmsTagline: sp.tagline,
+                _cmsImage: sp.image,
+                _cmsCustomDescription: sp.customDescription
+              });
             }
           }
         }
@@ -212,6 +234,11 @@ export default function Home() {
           extended = [...extended, ...bestSellerSource];
         }
         setBestSellers(extended.slice(0, 13));
+
+        // Discounted Products
+        const discountedSource = allProducts.filter((p: any) => p.discountAmount && p.discountAmount > 0);
+        setDiscountedProducts(discountedSource);
+
       } catch (error) {
         console.error('Failed to fetch featured products:', error);
       }
@@ -231,6 +258,17 @@ export default function Home() {
 
     fetchFeatured();
     fetchTestimonials();
+
+    // Real-time updates
+    const socket = io();
+    socket.on('settings_updated', fetchFeatured);
+    socket.on('products_updated', fetchFeatured);
+    socket.on('hero_updated', fetchFeatured);
+    socket.on('combos_updated', fetchFeatured);
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
 
   // Handle Screen Resize
@@ -281,31 +319,65 @@ export default function Home() {
       <div className="luxury-blob luxury-blob-3" aria-hidden="true"></div>
 
       {/* Dynamic Hero Section */}
-      <section className="relative min-h-[85dvh] md:h-screen w-full flex items-center justify-center overflow-hidden hero-glow z-10 bg-[#000000] pt-[56px] md:pt-[64px] pb-20 md:pb-0">
+      <section className="relative w-full flex items-center justify-center overflow-hidden hero-glow z-10 bg-[#000000] pt-[20px] pb-10 md:pb-0 md:pt-0 aspect-video md:aspect-auto md:h-[calc(100vh-104px)] 2xl:h-[calc(100vh-120px)]">
         
         {/* Render Active Slide or Fallback */}
-        {heroMediaList.length > 0 ? (
+        {isLoadingHeroMedia ? (
+          <div className="absolute inset-0 w-full h-full bg-black animate-pulse z-0"></div>
+        ) : heroMediaList.length > 0 ? (
           heroMediaList.map((media, idx) => {
             const isActive = idx === heroBgIndex;
             
-            // External Video Detection
-            let embedUrl = media.mediaUrl;
+            // Resolve Image
+            const desktopImage = media.desktopImageUrl || (media.type === 'image' ? media.mediaUrl : (media.thumbnail || heroImages[0] || ''));
+            const mobileImage = media.mobileImageUrl || desktopImage;
+            
+            // Resolve Video
+            let rawVideo = media.videoFile || (media.type === 'video_upload' ? media.mediaUrl : '');
+            let embedVideoUrl = media.videoUrl || (media.type === 'video_url' ? media.mediaUrl : '');
+            
             let isIframe = false;
-            if (media.type === 'video_url') {
-              if (embedUrl.includes('youtube.com') || embedUrl.includes('youtu.be')) {
-                const videoId = embedUrl.includes('youtu.be') ? embedUrl.split('/').pop() : new URL(embedUrl).searchParams.get('v');
-                embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=${media.autoplay ? 1 : 0}&mute=${media.muted ? 1 : 0}&loop=${media.loop ? 1 : 0}&controls=${media.controls ? 1 : 0}&playlist=${videoId}`;
-                isIframe = true;
-              } else if (embedUrl.includes('vimeo.com')) {
-                const videoId = embedUrl.split('/').pop();
-                embedUrl = `https://player.vimeo.com/video/${videoId}?background=${!media.controls ? 1 : 0}&autoplay=${media.autoplay ? 1 : 0}&loop=${media.loop ? 1 : 0}&muted=${media.muted ? 1 : 0}`;
-                isIframe = true;
-              } else if (embedUrl.includes('tiktok.com')) {
-                const videoId = embedUrl.split('/video/')[1];
-                embedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
-                isIframe = true;
+            let finalEmbedUrl = embedVideoUrl;
+
+            if (embedVideoUrl) {
+              if (embedVideoUrl.includes('youtube.com') || embedVideoUrl.includes('youtu.be')) {
+                const match = embedVideoUrl.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=|shorts\/))([\w-]{11})/);
+                const videoId = match ? match[1] : null;
+                if (videoId) {
+                  finalEmbedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=${media.autoplay ? 1 : 0}&mute=${media.muted ? 1 : 0}&loop=${media.loop ? 1 : 0}&controls=${media.controls ? 1 : 0}&playlist=${videoId}&playsinline=1`;
+                  isIframe = true;
+                }
+              } else if (embedVideoUrl.includes('vimeo.com')) {
+                const match = embedVideoUrl.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+                const videoId = match ? match[1] : null;
+                if (videoId) {
+                  finalEmbedUrl = `https://player.vimeo.com/video/${videoId}?background=${!media.controls ? 1 : 0}&autoplay=${media.autoplay ? 1 : 0}&loop=${media.loop ? 1 : 0}&muted=${media.muted ? 1 : 0}`;
+                  isIframe = true;
+                }
+              } else if (embedVideoUrl.includes('tiktok.com')) {
+                const match = embedVideoUrl.match(/video\/(\d+)/);
+                const videoId = match ? match[1] : null;
+                if (videoId) {
+                  finalEmbedUrl = `https://www.tiktok.com/embed/v2/${videoId}`;
+                  isIframe = true;
+                }
+              } else if (embedVideoUrl.includes('drive.google.com')) {
+                const match = embedVideoUrl.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+                if (match) {
+                  finalEmbedUrl = `https://drive.google.com/file/d/${match[1]}/preview`;
+                  isIframe = true;
+                }
+              } else {
+                rawVideo = embedVideoUrl;
+                finalEmbedUrl = '';
               }
             }
+
+            // Sync Overlay Props
+            const title = media.headline || media.title;
+            const subtitle = media.subheadline || media.subtitle;
+            const btnText = media.ctaText || media.buttonText;
+            const btnLink = media.ctaLink || media.buttonLink;
 
             return (
               <div 
@@ -320,76 +392,86 @@ export default function Home() {
               >
                 {/* Media Layer */}
                 <div className="absolute inset-0 w-full h-full bg-black">
-                  {media.type === 'image' && (
-                    <CloudinaryImage src={media.mediaUrl} alt="Hero" className="w-full h-full object-cover" loading={isActive ? "eager" : "lazy"} width={1920} />
+                  
+                  {/* Always render poster image beneath video */}
+                  {desktopImage && (
+                    <picture>
+                      <source media="(max-width: 767px)" srcSet={mobileImage} />
+                      <source media="(min-width: 768px)" srcSet={desktopImage} />
+                      <img src={desktopImage} alt="Hero Poster" className="absolute inset-0 w-full h-full object-contain md:object-cover z-0" loading={isActive ? "eager" : "lazy"} />
+                    </picture>
                   )}
-                  {media.type === 'video_upload' && (
+
+                  {/* Render Video Over Image */}
+                  {rawVideo && (
                     <video 
-                      src={media.mediaUrl} 
-                      poster={media.thumbnail || undefined}
+                      src={rawVideo} 
                       autoPlay={media.autoplay && isActive}
-                      loop={media.loop}
-                      muted={media.muted}
+                      loop={media.loop !== false}
+                      muted={media.muted !== false}
                       controls={media.controls}
                       playsInline
-                      className="w-full h-full object-cover blur-xl transition-all duration-1000 data-[loaded=true]:blur-none"
-                      onLoadedData={(e) => e.currentTarget.setAttribute('data-loaded', 'true')}
+                      preload="auto"
+                      className="absolute inset-0 w-full h-full object-contain md:object-cover z-10 transition-opacity duration-1000 opacity-0"
+                      onLoadedData={(e) => { e.currentTarget.style.opacity = '1'; }}
+                      onPlay={(e) => { e.currentTarget.style.opacity = '1'; }}
+                      ref={(el) => {
+                        if (el) {
+                          if (el.readyState >= 3) {
+                            el.style.opacity = '1';
+                          }
+                          if (media.autoplay && isActive) {
+                            el.play().catch(e => console.log("Autoplay prevented:", e));
+                          } else {
+                            el.pause();
+                          }
+                        }
+                      }}
                     />
                   )}
-                  {media.type === 'video_url' && (
-                    isIframe ? (
-                      <div className="w-full h-full pointer-events-none scale-150 md:scale-105">
-                        <iframe 
-                          src={isActive ? embedUrl : ''} 
-                          className="w-full h-full object-cover" 
-                          allow="autoplay; fullscreen" 
-                          frameBorder="0"
-                        />
-                      </div>
-                    ) : (
-                      <video 
-                        src={media.mediaUrl} 
-                        poster={media.thumbnail || undefined}
-                        autoPlay={media.autoplay && isActive}
-                        loop={media.loop}
-                        muted={media.muted}
-                        controls={media.controls}
-                        playsInline
-                        className="w-full h-full object-cover blur-xl transition-all duration-1000 data-[loaded=true]:blur-none"
-                        onLoadedData={(e) => e.currentTarget.setAttribute('data-loaded', 'true')}
+
+                  {finalEmbedUrl && isIframe && (
+                    <div className={`absolute inset-0 w-full h-full z-10 transition-opacity duration-1000 opacity-0 ${media.controls ? 'pointer-events-auto' : 'pointer-events-none scale-[1.3] md:scale-[1.5]'}`}
+                         onLoad={(e) => e.currentTarget.style.opacity = '1'}>
+                      <iframe 
+                        src={isActive ? finalEmbedUrl : ''} 
+                        className="w-full h-full" 
+                        allow="autoplay; fullscreen" 
+                        frameBorder="0"
                       />
-                    )
+                    </div>
                   )}
+
                 </div>
 
                 {/* Luxury Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10 z-10"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/10 z-20"></div>
 
                 {/* Content Overlay */}
-                {(media.title || media.subtitle || media.buttonText) && (
-                  <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-5 max-w-4xl mx-auto h-full pt-10">
+                {(title || subtitle || btnText) && (
+                  <div className="absolute inset-0 z-30 flex flex-col items-center justify-center text-center px-5 max-w-4xl mx-auto h-full pt-10">
                     <motion.div 
                       initial={{ opacity: 0, y: 30 }}
                       animate={isActive ? { opacity: 1, y: 0 } : { opacity: 0, y: 30 }}
                       transition={{ duration: 1, delay: 0.3 }}
-                      className="backdrop-blur-md bg-white/10 border border-white/20 p-8 md:p-12 rounded-[2.5rem] shadow-2xl"
+                      className="hidden md:block backdrop-blur-md bg-white/10 border border-white/20 p-4 md:p-12 rounded-2xl md:rounded-[2.5rem] shadow-2xl"
                     >
-                      {media.title && (
-                        <h1 className="text-4xl md:text-6xl font-serif font-bold mb-4 text-white drop-shadow-lg leading-tight">
-                          {media.title}
+                      {title && (
+                        <h1 className="text-2xl md:text-6xl font-serif font-bold mb-2 md:mb-4 text-white drop-shadow-lg leading-tight">
+                          {title}
                         </h1>
                       )}
-                      {media.subtitle && (
-                        <p className="text-lg md:text-xl mb-8 text-white/90 drop-shadow max-w-2xl mx-auto">
-                          {media.subtitle}
+                      {subtitle && (
+                        <p className="text-sm md:text-xl mb-4 md:mb-8 text-white/90 drop-shadow max-w-2xl mx-auto">
+                          {subtitle}
                         </p>
                       )}
-                      {media.buttonText && media.buttonLink && (
+                      {btnText && btnLink && (
                         <Link 
-                          to={media.buttonLink} 
-                          className="inline-block bg-white text-black px-10 py-4 rounded-full font-bold text-lg hover:bg-gray-100 hover:scale-105 transition-all shadow-xl"
+                          to={btnLink} 
+                          className="inline-block bg-white text-black px-6 py-2 md:px-10 md:py-4 rounded-full font-bold text-sm md:text-lg hover:bg-gray-100 hover:scale-105 transition-all shadow-xl"
                         >
-                          {media.buttonText}
+                          {btnText}
                         </Link>
                       )}
                     </motion.div>
@@ -417,7 +499,7 @@ export default function Home() {
                 <CloudinaryImage
                   src={img}
                   alt="Luxury Perfume"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain"
                   loading={idx === 0 ? "eager" : "lazy"}
                   width={1920}
                 />
@@ -434,13 +516,13 @@ export default function Home() {
                     transition: { staggerChildren: 0.2 }
                   }
                 }}
-                className="relative z-20 text-center px-5 md:px-12 py-8 md:py-10 max-w-4xl mx-auto backdrop-blur-md bg-white/40 border border-white/30 shadow-[0_8px_32px_rgba(0,0,0,0.1)] rounded-[2rem] md:rounded-[2.5rem] drop-shadow-xl"
+                className="relative hidden md:block z-20 text-center px-4 md:px-12 py-6 md:py-10 max-w-4xl mx-auto backdrop-blur-md bg-white/40 border border-white/30 shadow-[0_8px_32px_rgba(0,0,0,0.1)] rounded-2xl md:rounded-[2.5rem] drop-shadow-xl"
               >
                 {settings?.heroHeading && (
                   <motion.h1
                     variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
                     transition={{ duration: 0.8 }}
-                    className="text-3xl md:text-6xl font-serif font-bold mb-3 md:mb-4 tracking-tight leading-tight"
+                    className="text-2xl md:text-6xl font-serif font-bold mb-2 md:mb-4 tracking-tight leading-tight"
                     style={{ color: settings.heroHeadingColor || '#111111' }}
                   >
                     {settings.heroHeading}
@@ -450,7 +532,7 @@ export default function Home() {
                   <motion.p
                     variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
                     transition={{ duration: 0.8 }}
-                    className="text-base md:text-xl mb-8 font-medium max-w-2xl mx-auto"
+                    className="text-sm md:text-xl mb-4 md:mb-8 font-medium max-w-2xl mx-auto"
                     style={{ color: settings.heroSubheadingColor || '#333333' }}
                   >
                     {settings.heroSubheading}
@@ -460,12 +542,12 @@ export default function Home() {
                   <motion.div
                     variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
                     transition={{ duration: 0.8 }}
-                    className="flex flex-col sm:flex-row items-center justify-center gap-4"
+                    className="flex flex-col sm:flex-row items-center justify-center gap-3 md:gap-4"
                   >
                     {settings?.heroButtonText && settings?.heroButtonLink && (
                       <Link
                         to={settings.heroButtonLink}
-                        className="px-8 py-4 rounded-full font-bold text-lg hover:opacity-90 hover:shadow-lg hover:-translate-y-0.5 transition-all w-full sm:w-auto"
+                        className="px-6 py-2 md:px-8 md:py-4 rounded-full font-bold text-sm md:text-lg hover:opacity-90 hover:shadow-lg hover:-translate-y-0.5 transition-all w-full sm:w-auto"
                         style={{ 
                           backgroundColor: settings.heroButtonBgColor || '#111111', 
                           color: settings.heroButtonTextColor || '#ffffff' 
@@ -476,7 +558,7 @@ export default function Home() {
                     )}
                     <Link
                       to="/combos"
-                      className="bg-white/60 backdrop-blur-sm border-2 border-[#111111]/10 text-[#111111] px-8 py-4 rounded-full font-bold text-lg hover:border-[#111111]/30 hover:bg-white/80 hover:shadow-lg hover:-translate-y-0.5 transition-all w-full sm:w-auto"
+                      className="bg-white/60 backdrop-blur-sm border-2 border-[#111111]/10 text-[#111111] px-6 py-2 md:px-8 md:py-4 rounded-full font-bold text-sm md:text-lg hover:border-[#111111]/30 hover:bg-white/80 hover:shadow-lg hover:-translate-y-0.5 transition-all w-full sm:w-auto"
                     >
                       Explore Combos
                     </Link>
@@ -546,21 +628,24 @@ export default function Home() {
                   zIndex: abs > maxV ? 0 : 50 - abs,
                   opacity: abs > maxV ? 0 : (abs > (isMobile ? 3 : 5) ? Math.max(0, 1 - (abs - (isMobile ? 3 : 5)) * 0.4) : 1),
                   pointerEvents: abs > maxV ? 'none' : 'auto',
-                  boxShadow: abs === 0 ? '0 25px 50px -12px rgba(0,0,0,0.25)' : '0 10px 30px -10px rgba(0,0,0,0.12)',
-                  filter: abs === 0 ? 'brightness(1)' : `brightness(${Math.max(0.6, 1 - abs * 0.1)})`,
+                  boxShadow: abs === 0 ? '0 25px 50px -12px rgba(0,0,0,0.5)' : '0 10px 30px -10px rgba(0,0,0,0.3)',
+                  filter: abs === 0 ? 'brightness(1)' : `brightness(${Math.max(0.4, 1 - abs * 0.15)})`,
                 };
                 return (
-                  <div key={`bs-${i}`} className="rounded-2xl overflow-hidden bg-white group border border-[#eeeeee]" style={style} onClick={() => { if (rel !== 0) setBestSellerIndex(i); }}>
+                  <div key={`bs-${i}`} className="rounded-2xl overflow-hidden bg-[#111] group border-4 border-white/80 shadow-xl" style={style} onClick={() => { if (rel !== 0) setBestSellerIndex(i); }}>
                     <Link to={`/product/${product.slug || product._id || product.id}`} className="block w-full h-full relative" onClick={(e) => rel !== 0 && e.preventDefault()}>
-                      <CloudinaryImage src={cardBg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-10 md:opacity-[0.12] transition-opacity duration-500 group-hover:opacity-20" loading="lazy" width={600} />
-                      <div className="absolute inset-0 flex flex-col p-6 z-10 bg-gradient-to-t from-white/95 via-white/50 to-white/95">
-                        <h3 className="text-base md:text-2xl font-serif font-bold text-[#111] text-center mb-auto mt-2 tracking-wide">{product._customTitle || product.name}</h3>
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-36 h-36 sm:w-52 sm:h-52 md:w-64 md:h-64">
-                          <CloudinaryImage src={product._customImage || displayImage} alt={product.name} className="w-full h-full object-contain group-hover:scale-105 group-hover:-translate-y-1 transition-all duration-500" width={400} />
-                        </div>
-                        <div className="mt-auto text-center z-20">
-                          <span className={`inline-block bg-[#C9A96E] text-white px-5 py-2.5 md:px-8 md:py-3.5 rounded-lg text-sm md:text-base font-bold shadow-md hover:bg-[#b0915a] hover:scale-105 transition-all duration-300 ${rel !== 0 ? 'pointer-events-none' : ''}`}>Buy Now</span>
-                        </div>
+                      <CloudinaryImage 
+                        src={product._customImage || displayImage} 
+                        alt={product._customTitle || product.name} 
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+                        loading="lazy" 
+                        width={600} 
+                      />
+                      <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 to-transparent z-10 pointer-events-none"></div>
+                      <div className="absolute bottom-6 md:bottom-8 left-1/2 -translate-x-1/2 z-20 w-full text-center">
+                        <span className={`inline-flex items-center justify-center bg-white text-[#111111] px-8 py-2.5 rounded-md text-sm font-bold tracking-wide uppercase shadow-[0_4px_14px_rgba(0,0,0,0.1)] hover:shadow-[0_6px_20px_rgba(0,0,0,0.15)] hover:bg-[#f8f8f8] hover:scale-105 transition-all duration-300 ${rel !== 0 ? 'pointer-events-none' : ''}`}>
+                          Buy Now
+                        </span>
                       </div>
                     </Link>
                   </div>
@@ -580,9 +665,82 @@ export default function Home() {
         );
       })()}
 
-      <Recommendations title="Recommended For You" limit={4} />
+      {/* Discounted Perfumes Section */}
+      {settings?.discountedSection?.enabled !== false && discountedProducts.length > 0 && (
+        <section className="relative bg-[#faf8ff] py-16 overflow-hidden">
+          <div className="container mx-auto px-4 md:px-8">
+            <div className="flex flex-col items-center text-center mb-8 md:mb-12">
+              <h2 className="text-3xl md:text-5xl font-serif font-bold text-[#111]">{settings.discountedSection?.title || 'Discounted Perfumes'}</h2>
+              {settings.discountedSection?.subtitle && (
+                <p className="text-[#555] text-sm md:text-lg mt-2 font-medium">{settings.discountedSection.subtitle}</p>
+              )}
+            </div>
 
-      {/* Signature Collection */}
+            <div className="flex flex-col lg:flex-row gap-6 md:gap-8 items-stretch">
+              {/* Promotional Banner Card */}
+              <div className="lg:w-1/4 shrink-0 rounded-3xl overflow-hidden shadow-xl relative group h-[300px] md:h-[350px] lg:h-auto lg:mb-8">
+                <Link to={settings.discountedSection?.bannerLink || "/shop"} className="block w-full h-full relative">
+                  <CloudinaryImage 
+                    src={isMobile ? (settings.discountedSection?.mobileBannerImage || settings.discountedSection?.desktopBannerImage || 'https://via.placeholder.com/800x1200') : (settings.discountedSection?.desktopBannerImage || 'https://via.placeholder.com/800x1200')}
+                    alt="Discount Banner"
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                    width={800}
+                  />
+                  <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors duration-500"></div>
+                </Link>
+              </div>
+
+              {/* Horizontal Product Carousel */}
+              <div className="lg:w-3/4 w-full relative group/carousel">
+                {/* Left Arrow */}
+                <button 
+                  onClick={() => {
+                    const el = document.getElementById('discounted-carousel');
+                    if (el) el.scrollBy({ left: -320, behavior: 'smooth' });
+                  }}
+                  className="absolute -left-4 top-1/2 -translate-y-1/2 z-[60] w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 backdrop-blur-md border border-black/10 flex items-center justify-center hover:bg-white hover:scale-110 transition-all duration-300 shadow-lg opacity-0 group-hover/carousel:opacity-100 hidden md:flex" 
+                  aria-label="Previous"
+                >
+                  <svg className="w-5 h-5 md:w-6 md:h-6 text-[#111]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                
+                {/* Right Arrow */}
+                <button 
+                  onClick={() => {
+                    const el = document.getElementById('discounted-carousel');
+                    if (el) el.scrollBy({ left: 320, behavior: 'smooth' });
+                  }}
+                  className="absolute -right-4 top-1/2 -translate-y-1/2 z-[60] w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 backdrop-blur-md border border-black/10 flex items-center justify-center hover:bg-white hover:scale-110 transition-all duration-300 shadow-lg opacity-0 group-hover/carousel:opacity-100 hidden md:flex" 
+                  aria-label="Next"
+                >
+                  <svg className="w-5 h-5 md:w-6 md:h-6 text-[#111]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
+                </button>
+
+                <div 
+                  id="discounted-carousel"
+                  className="flex overflow-x-auto gap-4 md:gap-6 pb-8 snap-x snap-mandatory hide-scrollbar scroll-smooth"
+                  style={{
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none'
+                  }}
+                >
+                  {discountedProducts.map((product, i) => (
+                    <div 
+                      key={`discount-${product._id || product.id}-${i}`} 
+                      className="snap-start shrink-0"
+                      style={{ 
+                        width: isMobile ? '260px' : 'calc(25% - 18px)' 
+                      }}
+                    >
+                      <ProductCard product={product} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
       <section className="relative z-30 bg-[#fbf9ff] py-16 md:py-24 border-t border-[#eeeeee]">
         <div className="container mx-auto px-6 md:px-10 lg:px-16 text-center mb-8">
           <h2 className="text-4xl md:text-5xl font-serif font-bold text-[#111111] mb-4">Signature Collection</h2>
@@ -608,15 +766,15 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Why Rivore Intro */}
+      {/* Why Rivoré Intro */}
       <section className="relative z-40 bg-white pt-16 md:pt-20 pb-6 md:pb-10 border-t border-[#f0f0f0]">
         <div className="container mx-auto px-6 md:px-10 lg:px-16 text-center">
-          <h2 className="text-4xl md:text-5xl font-serif font-bold text-[#111111] mb-4">Why Rivore?</h2>
+          <h2 className="text-4xl md:text-5xl font-serif font-bold text-[#111111] mb-4">Why Rivoré?</h2>
           <p className="text-[#555] max-w-2xl mx-auto text-lg ranking-wide leading-relaxed">Experience the difference of true luxury.</p>
         </div>
       </section>
 
-      {/* Why Rivore Cards (CMS-driven) */}
+      {/* Why Rivoré Cards (CMS-driven) */}
       {(() => {
         const whyRivoreFeatures = cmsWhyRivore.length > 0 ? cmsWhyRivore.map(item => {
           const IconMap: Record<string, any> = { Clock, Sparkles, Gem };
@@ -726,7 +884,7 @@ export default function Home() {
               <div className="w-full max-w-md aspect-square rounded-3xl overflow-hidden shadow-lg border border-[#eeeeee]">
                 <CloudinaryImage 
                   src={comboImage || 'https://images.unsplash.com/photo-1615486171448-4df171221b06?q=80&w=800&auto=format&fit=crop'} 
-                  alt="Rivore Combo Collection" 
+                  alt="Rivoré Combo Collection" 
                   className="w-full h-full object-cover" 
                   width={600}
                 />
@@ -891,12 +1049,14 @@ export default function Home() {
               <div className="relative w-full max-w-[500px] h-[350px] md:h-[450px] flex items-center justify-center group" style={{ perspective: '1000px' }}>
                 <div className="absolute inset-0 bg-[#f8f5ff] blur-3xl rounded-full opacity-60 -z-10 group-hover:scale-110 group-hover:opacity-80 transition-all duration-700"></div>
                 
-                <CloudinaryImage 
-                  src={storeLocation.image || '/store-transparent.png'} 
-                  alt="Rivore Store" 
-                  className="object-contain w-full h-full transform transition-all duration-700 ease-out group-hover:-translate-y-6 group-hover:scale-105"
-                  width={600}
-                />
+                <div className="absolute inset-0 overflow-hidden rounded-[2rem] flex items-center justify-center">
+                  <CloudinaryImage 
+                    src={storeLocation.image || '/store-transparent.png'} 
+                    alt="Rivoré Store" 
+                    className="object-contain w-full h-full transform transition-all duration-700 ease-out group-hover:-translate-y-6 group-hover:scale-105"
+                    width={600}
+                  />
+                </div>
                 
                 {/* Fallback prompt text if image fails to load */}
                 <div className="absolute flex flex-col items-center justify-center pointer-events-none opacity-[0.15] z-[-1] text-center">

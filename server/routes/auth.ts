@@ -9,7 +9,7 @@ import { checkFailedLogins, recordFailedLogin, clearFailedLogins } from '../midd
 import { authenticateAdmin } from '../middleware/auth';
 import sgMail from '@sendgrid/mail';
 import AdminActivity from '../models/AdminActivity';
-import UAParser from 'ua-parser-js';
+import { UAParser } from 'ua-parser-js';
 import geoip from 'geoip-lite';
 
 const router = express.Router();
@@ -82,7 +82,7 @@ router.post('/login', verifyTurnstile, checkFailedLogins, async (req, res) => {
       const geo = geoip.lookup(ip);
 
       await AdminActivity.create({
-        adminId: user._id,
+        adminId: String(user._id),
         adminName: user.email,
         action: 'Login',
         target: 'Admin Dashboard',

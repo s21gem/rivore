@@ -6,9 +6,10 @@ import Address from '../models/Address';
 import Reward from '../models/Reward';
 import Referral from '../models/Referral';
 import Coupon from '../models/Coupon';
-import { authenticate } from '../middleware/auth';
+import { authenticateAdmin as authenticate } from '../middleware/auth';
 import { checkSteadfastStatus } from '../services/courierService';
 import Settings from '../models/Settings';
+import Product from '../models/Product';
 
 // Define the authenticated request interface
 interface AuthRequest extends express.Request {

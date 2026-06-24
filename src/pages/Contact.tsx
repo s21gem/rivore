@@ -31,7 +31,7 @@ export default function Contact() {
         <p className="text-[10px] uppercase tracking-[0.3em] mb-6 font-medium text-muted-foreground">Get in Touch</p>
         <h1 className="text-5xl md:text-7xl font-serif font-light text-primary mb-12">Contact Us</h1>
         <p className="text-lg md:text-xl font-light text-muted-foreground leading-relaxed mb-24 max-w-3xl mx-auto">
-          We'd love to hear from you. Whether you have a question about our fragrances, need assistance with an order, or just want to share your Rivore experience, our team is here to help.
+          We'd love to hear from you. Whether you have a question about our fragrances, need assistance with an order, or just want to share your Rivoré experience, our team is here to help.
         </p>
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 lg:gap-24 text-left border-t border-border pt-24">
