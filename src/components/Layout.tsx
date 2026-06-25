@@ -63,9 +63,9 @@ export default function Layout() {
   return (
     <div className="min-h-screen flex flex-col font-sans bg-background text-foreground">
       <Helmet>
-        <title>Rivor\u00E9 | Luxury Fragrances</title>
+        <title>Rivoré | Luxury Fragrances</title>
         <meta name="description" content="Premium perfumes crafted for elegance and luxury. Discover your signature scent." />
-        <meta property="og:title" content="Rivor\u00E9 | Luxury Fragrances" />
+        <meta property="og:title" content="Rivoré | Luxury Fragrances" />
         <meta property="og:description" content="Premium perfumes crafted for elegance and luxury." />
         <meta property="og:type" content="website" />
         <meta name="twitter:card" content="summary_large_image" />
