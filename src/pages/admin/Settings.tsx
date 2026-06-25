@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../../store/authStore';
-import { Plus, Trash2, X, Upload, Save, ChevronDown, Shield, Lock, Mail, Eye, EyeOff, Award } from 'lucide-react';
+import { Plus, Trash2, X, Upload, Save, ChevronDown, Shield, Lock, Mail, Eye, EyeOff, Award, Activity } from 'lucide-react';
 import Loader from '../../components/Loader';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';

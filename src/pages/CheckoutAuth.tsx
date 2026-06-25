@@ -121,7 +121,7 @@ export default function CheckoutAuth() {
                 <button 
                   onClick={() => {
                     // Send analytics
-                    if (window.fbq) window.fbq('trackCustom', 'GuestCheckoutSelected');
+                    if ((window as any).fbq) (window as any).fbq('trackCustom', 'GuestCheckoutSelected');
                     navigate('/checkout');
                   }}
                   className="w-full sm:w-auto bg-[#111] text-white px-10 py-4 rounded-2xl font-bold tracking-wide hover:bg-primary transition-all flex items-center justify-center gap-2"
